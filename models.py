@@ -1,7 +1,31 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, Enum, DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime
+from sqlalchemy.dialects.postgresql import ENUM
+from enum import Enum as PyEnum  # Correct import for Python Enums
 from db_configure import Base
 
+# Define Python Enum types
+class UserStatusEnum(PyEnum):
+    active = 'active'
+    inactive = 'inactive'
+
+class AgeGroupEnum(PyEnum):
+    zero = '0'
+    one = '1'
+    two = '2'
+
+class GenderEnum(PyEnum):
+    male = 'male'
+    female = 'female'
+
+class ActivityNameEnum(PyEnum):
+    login = 'login'
+    logout = 'logout'
+
+class ActivityTypeEnum(PyEnum):
+    normal = 'normal'
+    abnormal = 'abnormal'
+
+# Define Models
 class Account(Base):
     __tablename__ = 'tbl_accounts'
 
@@ -13,7 +37,7 @@ class Account(Base):
     last_name = Column(String(50))
     tel = Column(String(20))
     user_photo = Column(String(255))
-    user_status = Column(Enum('active', 'inactive'))
+    user_status = Column(ENUM(UserStatusEnum, name="user_status_enum", create_type=True))
 
 class Camera(Base):
     __tablename__ = 'tbl_cameras'
@@ -33,7 +57,7 @@ class Counter(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     counter_id = Column(Integer, unique=True, nullable=False)
     counter_name = Column(String(100))
-    counter_cam_id = Column(Integer)  
+    counter_cam_id = Column(Integer)
     num_of_rois = Column(Integer)
     counter_desc = Column(Text)
 
@@ -42,7 +66,7 @@ class ROI(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     roi_id = Column(Integer, unique=True, nullable=False)
-    counter_roi_id = Column(Integer)  
+    counter_roi_id = Column(Integer)
     roi_coor = Column(Text)
     roi_desc = Column(Text)
 
@@ -51,19 +75,19 @@ class Visitor(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     person_id = Column(Integer)
-    roi_id = Column(Integer)  
-    counter_id = Column(Integer)  
-    cam_id = Column(Integer)  
+    roi_id = Column(Integer)
+    counter_id = Column(Integer)
+    cam_id = Column(Integer)
     person_duration_in_roi = Column(Integer)
-    person_age_group = Column(Enum('0', '1', '2'))
-    person_gender = Column(Enum('male', 'female'))
+    person_age_group = Column(ENUM(AgeGroupEnum, name="age_group_enum", create_type=True))
+    person_gender = Column(ENUM(GenderEnum, name="gender_enum", create_type=True))
 
 class Activity(Base):
     __tablename__ = 'tbl_activities'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    activity_name = Column(Enum('login', 'logout'))
-    activity_type = Column(Enum('normal', 'abnormal'))
+    activity_name = Column(ENUM(ActivityNameEnum, name="activity_name_enum", create_type=True))
+    activity_type = Column(ENUM(ActivityTypeEnum, name="activity_type_enum", create_type=True))
     usr_log_in_date_time = Column(DateTime)
     usr_log_out_date_time = Column(DateTime)
     activity_desc = Column(Text)
