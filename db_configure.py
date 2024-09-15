@@ -1,9 +1,11 @@
+
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Hardcoded example with correct port number
-DATABASE_URL = "mysql+pymysql://rd_db_usr:rd_pass@db_host:3306/RD_DB_3"
+# Database connection
+DATABASE_URL = "postgresql+psycopg2://amdb_user:bkk2ZKn3eESLEoojzTNpJwWDR67eqcBo@dpg-crjenqe8ii6s73fffvjg-a:5432/amdb"
+
 
 # Create engine
 engine = create_engine(DATABASE_URL)
@@ -13,4 +15,5 @@ Base = declarative_base()
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
