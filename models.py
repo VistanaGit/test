@@ -100,3 +100,16 @@ class Notification(Base):
     notif_name = Column(String(100))
     notif_category = Column(String(50))
     notif_desc = Column(Text)
+
+# Define the new DetectionData table
+class DetectionData(Base):
+    __tablename__ = 'detect_data_tbl'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    counter_id = Column(Integer, nullable=False)
+    camera_id = Column(Integer, nullable=False)
+    roi_id = Column(Integer, nullable=False)
+    person_id = Column(Integer, nullable=False)
+    time_duration = Column(Integer, nullable=False)
+    person_age = Column(Integer, nullable=False)
+    person_gender = Column(ENUM(GenderEnum, name="gender_enum", create_type=True))
