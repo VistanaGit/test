@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Response
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 import cv2
 import os
 
@@ -45,4 +46,4 @@ def stream_video(filename: str):
                    b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n\r\n')
 
     # Return streaming response with multipart data
-    return Response(generate_video_stream(), media_type="multipart/x-mixed-replace; boundary=frame")
+    return StreamingResponse(generate_video_stream(), media_type="multipart/x-mixed-replace; boundary=frame")
