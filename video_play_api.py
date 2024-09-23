@@ -4,13 +4,20 @@ import os
 
 app = FastAPI()
 
-# Define the base path where video files are stored (NVR storage path)
-NVR_STORAGE_PATH = "/path_to_nvr"  # Replace with the actual path
+# Set the directory where video files are stored
+VIDEO_DIRECTORY = "Videos/"  # Path to the Videos directory
 
 @app.get("/video/{filename}")
 def stream_video(filename: str):
-    # Safely construct the full video file path
-    video_path = os.path.join(NVR_STORAGE_PATH, filename)
+    # Allowed video extensions
+    allowed_extensions = [".mp4", ".avi"]
+
+    # Ensure the file has an allowed extension
+    if not any(filename.endswith(ext) for ext in allowed_extensions):
+        return {"error": "Invalid file extension. Only .mp4 and .avi are allowed."}
+
+    # Construct the full video file path
+    video_path = os.path.join(VIDEO_DIRECTORY, filename)
 
     # Check if the file exists
     if not os.path.isfile(video_path):
@@ -26,7 +33,7 @@ def stream_video(filename: str):
             if not success:
                 break
 
-            # Convert each frame to JPEG format and yield
+            # Convert frame to JPG format and yield as a stream
             _, buffer = cv2.imencode('.jpg', frame)
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
