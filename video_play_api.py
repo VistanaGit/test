@@ -7,7 +7,7 @@ app = FastAPI()
 # Set the directory where video files are stored
 VIDEO_DIRECTORY = "Videos/"  # Path to the Videos directory
 
-@app.get("/video/{filename}")
+@app.get("/Videos/{filename}")
 def stream_video(filename: str):
     # Allowed video extensions
     allowed_extensions = [".mp4", ".avi"]
