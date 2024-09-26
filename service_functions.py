@@ -30,7 +30,7 @@ def recover_password(recovery_data: PasswordRecoveryData, db: Session):
     if not account:
         raise HTTPException(status_code=404, detail="Email not registered")
 
-    # Show the retrieved password (in a real application, this might be a security risk)
+    # Show the retrieved password (in a message)
     return {"message": f"Your password is: {account.password}"}
 
 # Function to handle login
