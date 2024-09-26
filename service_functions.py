@@ -5,7 +5,6 @@ from db_initialize import Account, Camera, Counter, ROI, Visitor
 from db_configure import SessionLocal 
 
 
-
 # Dependency to get the DB session
 def get_db():
     db = SessionLocal()
