@@ -1,9 +1,17 @@
+import os
+import secrets
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
-from db_initialize import Account, Camera, Counter, ROI, Visitor
-from db_configure import SessionLocal 
+from db_initialize import Account, Camera, Counter, ROI, Visitor  # Assuming you have these models
+from db_configure import SessionLocal
+from jose import JWTError, jwt
+from datetime import datetime, timedelta
 
+# Get SECRET_KEY from environment or dynamically generation
+SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_hex(32))  # Generates a 32-byte hex key if not found in env
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # Dependency to get the DB session
 def get_db():
@@ -18,102 +26,112 @@ class LoginData(BaseModel):
     username: str
     password: str
 
+# Token data model
+class TokenData(BaseModel):
+    username: str | None = None
+
 # Password recovery data model for request body
 class PasswordRecoveryData(BaseModel):
     email: EmailStr
 
 # Function for password recovery
 def recover_password(recovery_data: PasswordRecoveryData, db: Session):
-    # Query the database to find the account associated with the provided email
     account = db.query(Account).filter(Account.email == recovery_data.email).first()
-
     if not account:
         raise HTTPException(status_code=404, detail="Email not registered")
-
-    # Show the retrieved password (in a message)
     return {"message": f"Your password is: {account.password}"}
+
+# Function to create a JWT token
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+# Function to verify and decode JWT token
+def verify_token(token: str):
+    credentials_exception = HTTPException(
+        status_code=HTTPException.status_code,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        return TokenData(username=username)
+    except JWTError:
+        raise credentials_exception
 
 # Function to handle login
 def login(login_data: LoginData, db: Session):
-    # Query the database for the account with the provided username
     account = db.query(Account).filter(Account.user_name == login_data.username).first()
-
-    if not account:
+    if not account or account.password != login_data.password:
         raise HTTPException(status_code=400, detail="Username or password is wrong")
 
-    # Check if the password matches
-    if account.password != login_data.password:
-        raise HTTPException(status_code=400, detail="Username or password is wrong")
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(data={"sub": account.user_name}, expires_delta=access_token_expires)
+    return {"access_token": access_token, "token_type": "bearer"}
 
-    return {"message": "Successful login"}
-
-# Function for streaming video
+# Function for streaming video (unchanged)
 def stream_video(filename: str, frame_rate: int, VIDEO_DIRECTORY: str):
     import cv2
     import os
     import time
     from fastapi.responses import StreamingResponse
 
-    # Allowed video extensions
     allowed_extensions = [".mp4", ".avi"]
-
-    # Ensure the file has an allowed extension
     if not any(filename.endswith(ext) for ext in allowed_extensions):
         return {"error": "Invalid file extension. Only .mp4 and .avi are allowed."}
 
-    # Construct the full video file path
     video_path = os.path.join(VIDEO_DIRECTORY, filename)
-
-    # Check if the file exists
     if not os.path.isfile(video_path):
         return {"error": "File not found"}
 
-    # Open the video using OpenCV
     video_capture = cv2.VideoCapture(video_path)
-
-    # Check if the video can be opened
     if not video_capture.isOpened():
         return {"error": "Unable to open video file"}
 
-    # Calculate the delay time between frames
     frame_time = 1.0 / frame_rate  # Time between frames in seconds
 
-    # Generator function to stream video frames
     def generate_video_stream():
         while video_capture.isOpened():
             success, frame = video_capture.read()
             if not success:
                 break
-
-            # Convert the frame to JPG format
             _, buffer = cv2.imencode('.jpg', frame)
-
-            # Yield the frame as a byte sequence
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n\r\n')
-
-            # Introduce a delay to control the frame rate
             time.sleep(frame_time)
 
-    # Return streaming response with multipart data
     return StreamingResponse(generate_video_stream(), media_type="multipart/x-mixed-replace; boundary=frame")
 
-# Function for fetching account list
+# Function to get account list
 def get_account_list(db: Session):
-    return db.query(Account).all()
+    accounts = db.query(Account).all()
+    return accounts
 
-# Function for fetching camera list
+# Function to get camera list
 def get_camera_list(db: Session):
-    return db.query(Camera).all()
+    cameras = db.query(Camera).all()  # Assuming you have a Camera model
+    return cameras
 
-# Function for fetching counter list
+# Function to get counter list
 def get_counter_list(db: Session):
-    return db.query(Counter).all()
+    counters = db.query(Counter).all()  # Assuming you have a Counter model
+    return counters
 
-# Function for fetching ROI list
+# Function to get ROI list
 def get_roi_list(db: Session):
-    return db.query(ROI).all()
+    rois = db.query(ROI).all()  # Assuming you have an ROI model
+    return rois
 
-# Function for fetching visitor list
+# Function to get visitor list
 def get_visitor_list(db: Session):
-    return db.query(Visitor).all()
+    visitors = db.query(Visitor).all()  # Assuming you have a Visitor model
+    return visitors
