@@ -18,4 +18,5 @@ uvicorn==0.30.6
 opencv-contrib-python==4.10.0.84
 opencv-python==4.10.0.84
 opencv-python-headless==4.10.0.84
+pydantic[email]
 
