@@ -4,16 +4,17 @@ import logging
 from fastapi import Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
-from db_initialize import Account, Camera, Counter, ROI, Visitor
+from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
 from db_configure import SessionLocal
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
+from sqlalchemy import func
 
 # Set up logging configuration
 logging.basicConfig(level=logging.INFO)
 
 # Get SECRET_KEY from environment or dynamically generate it
-SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_hex(32))  # Generates a 32-byte hex key if not found in env
+SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_hex(32))
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -123,20 +124,66 @@ def get_account_list(db: Session):
 
 # Function to get camera list
 def get_camera_list(db: Session):
-    cameras = db.query(Camera).all()  # Assuming you have a Camera model
+    cameras = db.query(Camera).all()  # a Camera model
     return cameras
 
 # Function to get counter list
 def get_counter_list(db: Session):
-    counters = db.query(Counter).all()  # Assuming you have a Counter model
+    counters = db.query(Counter).all()  # a Counter model
     return counters
 
 # Function to get ROI list
 def get_roi_list(db: Session):
-    rois = db.query(ROI).all()  # Assuming you have an ROI model
+    rois = db.query(ROI).all()  # an ROI model
     return rois
 
 # Function to get visitor list
 def get_visitor_list(db: Session):
-    visitors = db.query(Visitor).all()  # Assuming you have a Visitor model
+    visitors = db.query(Visitor).all()  # a Visitor model
     return visitors
+
+# Function to get activity list
+def get_activity_list(db: Session):
+    activities = db.query(Activity).all()  # an Activity model
+    return activities
+
+# Function to get notification list
+def get_notification_list(db: Session):
+    notifications = db.query(Notification).all()  # a Notification model
+    return notifications
+
+# Function to find the least visited counter today
+def least_visited_counter(db: Session):
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    least_visited_result = (
+        db.query(Visitor.counter_id, func.count(Visitor.persons_count).label('visitor_count'))
+          .filter(Visitor.current_datetime >= today_start)
+          .group_by(Visitor.counter_id)
+          .order_by(func.count(Visitor.persons_count).asc())
+          .first()
+    )
+    
+    if least_visited_result:
+        counter_id, visitor_count = least_visited_result
+        return {"counter_id": counter_id, "visitor_count": visitor_count}
+    
+    return {"message": "No visitors found today."}
+
+# Function to find the most visited counter today
+def most_visited_counter(db: Session):
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    most_visited_result = (
+        db.query(Visitor.counter_id, func.count(Visitor.persons_count).label('visitor_count'))
+          .filter(Visitor.current_datetime >= today_start)
+          .group_by(Visitor.counter_id)
+          .order_by(func.count(Visitor.persons_count).desc())
+          .first()
+    )
+    
+    if most_visited_result:
+        counter_id, visitor_count = most_visited_result
+        return {"counter_id": counter_id, "visitor_count": visitor_count}
+    
+    return {"message": "No visitors found today."}
