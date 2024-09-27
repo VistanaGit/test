@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+from db_initialize import Account, Camera, Counter, ROI, Visitor 
 from service_functions import (
     recover_password,
     login,
@@ -14,8 +15,12 @@ from service_functions import (
     PasswordRecoveryData,
     LoginData,
     get_db,
-    verify_token  # Make sure this function is defined in service_functions.py
+    verify_token
 )
+
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
 
@@ -51,34 +56,52 @@ def stream_video_endpoint(filename: str, frame_rate: int = 10, token: str = Depe
 
 # Database query endpoints (authentication required)
 
-
 @app.get("/account_list")
 def get_account_list(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    token_data = verify_token(token)  # Ensure token is valid
     try:
-        token_data = verify_token(token)  # Ensure token is valid
         accounts = db.query(Account).all()  # Fetch accounts from the database
         return accounts
     except Exception as e:
-        print(f"Error: {e}")  # Print error for debugging
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-
+        logging.error(f"Error fetching account list: {e}")  # Log the error for debugging
+        return {"message": "Error fetching account list"}  # Return a simple message
 
 @app.get("/camera_list")
 def get_camera_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
     token_data = verify_token(token)  # Verifying the token
-    return get_camera_list(db)
+    try:
+        cameras = get_camera_list(db)  # Fetch camera list from the database
+        return cameras
+    except Exception as e:
+        logging.error(f"Error fetching camera list: {e}")  # Log the error for debugging
+        return {"message": "Error fetching camera list"}  # Return a simple message
 
 @app.get("/counter_list")
 def get_counter_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
     token_data = verify_token(token)  # Verifying the token
-    return get_counter_list(db)
+    try:
+        counters = get_counter_list(db)  # Fetch counter list from the database
+        return counters
+    except Exception as e:
+        logging.error(f"Error fetching counter list: {e}")  # Log the error for debugging
+        return {"message": "Error fetching counter list"}  # Return a simple message
 
 @app.get("/roi_list")
 def get_roi_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
     token_data = verify_token(token)  # Verifying the token
-    return get_roi_list(db)
+    try:
+        rois = get_roi_list(db)  # Fetch ROI list from the database
+        return rois
+    except Exception as e:
+        logging.error(f"Error fetching ROI list: {e}")  # Log the error for debugging
+        return {"message": "Error fetching ROI list"}  # Return a simple message
 
 @app.get("/visitor_list")
 def get_visitor_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
     token_data = verify_token(token)  # Verifying the token
-    return get_visitor_list(db)
+    try:
+        visitors = get_visitor_list(db)  # Fetch visitor list from the database
+        return visitors
+    except Exception as e:
+        logging.error(f"Error fetching visitor list: {e}")  # Log the error for debugging
+        return {"message": "Error fetching visitor list"}  # Return a simple message
