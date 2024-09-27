@@ -6,7 +6,6 @@ from sqlalchemy.orm import sessionmaker
 DATABASE_URL = "postgresql://amdb_user:bkk2ZKn3eESLEoojzTNpJwWDR67eqcBo@dpg-crjenqe8ii6s73fffvjg-a:5432/amdb"
 
 # Create engine
-
 engine = create_engine(DATABASE_URL)
 print("Database engine created successfully.")
 
