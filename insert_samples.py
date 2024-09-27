@@ -1,6 +1,6 @@
 from db_configure import SessionLocal
-from db_initialize import Account, Camera, Counter, ROI, Visitor
-from datetime import datetime
+from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
+from datetime import datetime, timedelta
 
 # Insert accounts data
 def insert_accounts():
@@ -67,11 +67,11 @@ def insert_rois():
     session = SessionLocal()
     try:
         rois = [
-            ROI(roi_id=1, counter_roi_id=1, roi_coor='[0,0,100,100]', roi_desc='Region 1 for Counter 1'),
-            ROI(roi_id=2, counter_roi_id=1, roi_coor='[101,0,200,100]', roi_desc='Region 2 for Counter 1'),
-            ROI(roi_id=3, counter_roi_id=2, roi_coor='[0,0,100,100]', roi_desc='Region 1 for Counter 2'),
-            ROI(roi_id=4, counter_roi_id=2, roi_coor='[101,0,200,100]', roi_desc='Region 2 for Counter 2'),
-            ROI(roi_id=5, counter_roi_id=3, roi_coor='[0,0,100,100]', roi_desc='Region 1 for Counter 3')
+            ROI(roi_id=1, counter_roi_id=1, roi_coor="[0,0,100,100]", roi_desc="Region 1 for Counter 1"),
+            ROI(roi_id=2, counter_roi_id=1, roi_coor="[101,0,200,100]", roi_desc="Region 2 for Counter 1"),
+            ROI(roi_id=3, counter_roi_id=2, roi_coor="[0,0,100,100]", roi_desc="Region 1 for Counter 2"),
+            ROI(roi_id=4, counter_roi_id=2, roi_coor="[101,0,200,100]", roi_desc="Region 2 for Counter 2"),
+            ROI(roi_id=5, counter_roi_id=3, roi_coor="[0,0,100,100]", roi_desc="Region 1 for Counter 3")
         ]
         session.add_all(rois)
         session.commit()
@@ -87,18 +87,140 @@ def insert_visitors():
     session = SessionLocal()
     try:
         visitors = [
-            Visitor(person_id=1, roi_id=1, counter_id=1, cam_id=1, person_duration_in_roi=120, person_age_group='young', person_gender='male', persons_count=3, current_datetime=datetime(2024, 9, 19, 10, 0, 0)),
-            Visitor(person_id=2, roi_id=2, counter_id=1, cam_id=1, person_duration_in_roi=150, person_age_group='adult', person_gender='female', persons_count=2, current_datetime=datetime(2024, 9, 19, 11, 0, 0)),
-            Visitor(person_id=3, roi_id=3, counter_id=2, cam_id=2, person_duration_in_roi=90, person_age_group='teenager', person_gender='male', persons_count=1, current_datetime=datetime(2024, 9, 19, 12, 0, 0)),
-            Visitor(person_id=4, roi_id=4, counter_id=2, cam_id=2, person_duration_in_roi=110, person_age_group='young', person_gender='female', persons_count=4, current_datetime=datetime(2024, 9, 19, 13, 0, 0)),
-            Visitor(person_id=5, roi_id=5, counter_id=3, cam_id=3, person_duration_in_roi=200, person_age_group='senior', person_gender='male', persons_count=5, current_datetime=datetime(2024, 9, 19, 14, 0, 0))
+            Visitor(person_id=1, roi_id=1, counter_id=1,
+                    cam_id=1,
+                    person_duration_in_roi=120,
+                    person_age_group="young",
+                    person_gender="male",
+                    persons_count=3,
+                    current_datetime=datetime(2024, 9, 19, 10)),
+            Visitor(person_id=2,
+                    roi_id=2,
+                    counter_id=1,
+                    cam_id=1,
+                    person_duration_in_roi=150,
+                    person_age_group="adult",
+                    person_gender="female",
+                    persons_count=2,
+                    current_datetime=datetime(2024 ,9 ,19 ,11)),
+            Visitor(person_id=3,
+                    roi_id=3,
+                    counter_id=2,
+                    cam_id=2,
+                    person_duration_in_roi=90,
+                    person_age_group="teenager",
+                    person_gender="male",
+                    persons_count=1,
+                    current_datetime=datetime(2024 ,9 ,27 ,12)),
+            Visitor(person_id=4,
+                    roi_id=4,
+                    counter_id=2,
+                    cam_id=2,
+                    person_duration_in_roi=110,
+                    person_age_group="young",
+                    person_gender="female",
+                    persons_count=4,
+                    current_datetime=datetime(2024 ,9 ,19 ,13)),
+            Visitor(person_id=5,
+                    roi_id=5,
+                    counter_id=3,
+                    cam_id=3,
+                    person_duration_in_roi=200,
+                    person_age_group="senior",
+                    person_gender="male",
+                    persons_count=5,
+                    current_datetime=datetime(2024 ,9 ,27 ,14))
         ]
+        
+        # Generate additional visitor records (25 total)
+        for i in range(6 ,31):
+            visitors.append(
+                Visitor(
+                person_id=i ,
+                roi_id=i % 5 + 1 ,
+                counter_id=(i - 1) % 3 + 1 ,
+                cam_id=(i - 1) % 3 + 1 ,
+                person_duration_in_roi=(i * 10) % 300 + 60 ,
+                person_age_group=['young' ,'adult' ,'teenager' ,'senior' ,'young'][i % 5] ,
+                person_gender=['male' ,'female'][i % 2] ,
+                persons_count=i % 5 + 1 ,
+                current_datetime=datetime.now() + timedelta(hours=i)
+                )
+            )
+        
         session.add_all(visitors)
         session.commit()
         print("Visitors inserted successfully!")
     except Exception as e:
         session.rollback()
-        print(f"An error occurred: {e}")
+        print(f"An error occurred while inserting visitors data: {e}")
+    finally:
+        session.close()
+
+# Insert activities data
+def insert_activities():
+    session = SessionLocal()
+    try:
+        activities = [
+            Activity(user_name="ahmad_hosseini", timestamp=datetime.now(), status="Logged In"),
+            Activity(user_name="reza_shokouhi", timestamp=datetime.now(), status="Logged Out"),
+            Activity(user_name="fatemeh_ghasemi", timestamp=datetime.now(), status="Logged In"),
+            Activity(user_name="mehdi_rahimi", timestamp=datetime.now(), status="Logged Out"),
+            Activity(user_name="leila_mohammadi", timestamp=datetime.now(), status="Logged In"),
+            Activity(user_name="ahmad_hosseini", timestamp=datetime.now(), status="Updated Profile"),
+            Activity(user_name="reza_shokouhi", timestamp=datetime.now(), status="Changed Password"),
+            Activity(user_name="fatemeh_ghasemi", timestamp=datetime.now(), status="Logged In"),
+            Activity(user_name="mehdi_rahimi", timestamp=datetime.now(), status="Logged Out"),
+            Activity(user_name="leila_mohammadi", timestamp=datetime.now(), status="Logged In")
+        ]
+        
+        session.add_all(activities)
+        session.commit()
+        print("Activities inserted successfully!")
+    except Exception as e:
+        session.rollback()
+        print(f"An error occurred while inserting activities data: {e}")
+    finally:
+        session.close()
+
+# Insert notifications data
+def insert_notifications():
+    session = SessionLocal()
+    try:
+        notifications = [
+            Notification(notify_text="Welcome to the system!", notify_type=1,
+                         timestamp=datetime.now(), desc="User logged in."),
+            Notification(notify_text="Your profile has been updated.", notify_type=None,
+                         timestamp=datetime.now(), desc="Profile update notification."),
+            Notification(notify_text="New visitor detected.", notify_type=None,
+                         timestamp=datetime.now(), desc="Visitor detection alert."),
+            Notification(notify_text="System maintenance scheduled.", notify_type=None,
+                         timestamp=datetime.now(), desc="Maintenance notification."),
+            Notification(notify_text="Password changed successfully.", notify_type=None,
+                         timestamp=datetime.now(), desc="Password change notification."),
+            Notification(notify_text="New camera added.", notify_type=None,
+                         timestamp=datetime.now(), desc="Camera addition alert."),
+            Notification(notify_text="ROI settings updated.", notify_type=None,
+                         timestamp=datetime.now(), desc="ROI update notification."),
+            Notification(notify_text="Visitor report generated.", notify_type=None,
+                         timestamp=datetime.now(), desc="Report generation alert."),
+            Notification(notify_text="User logged out.", notify_type=None,
+                         timestamp=datetime.now(), desc="Logout notification."),
+            Notification(notify_text="New update available.", notify_type=None,
+                         timestamp=datetime.now(), desc="Update notification.")
+        ]
+        
+        # Set default value for notify_type if not provided
+        for notification in notifications:
+            if notification.notify_type is None:
+                notification.notify_type = 1
+        
+        session.add_all(notifications)
+        session.commit()
+        print("Notifications inserted successfully!")
+    except Exception as e:
+        session.rollback()
+        print(f"An error occurred while inserting notifications data: {e}")
     finally:
         session.close()
 
@@ -108,7 +230,9 @@ def main():
     insert_cameras()
     insert_counters()
     insert_rois()
-    insert_visitors()
+    insert_visitors()      # Existing function to insert visitors
+    insert_activities()     # New function to insert activities
+    insert_notifications()   # New function to insert notifications
 
 if __name__ == "__main__":
     main()
