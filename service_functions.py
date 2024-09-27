@@ -1,14 +1,18 @@
 import os
 import secrets
-from fastapi import Depends, HTTPException
+import logging
+from fastapi import Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
-from db_initialize import Account, Camera, Counter, ROI, Visitor  # Assuming you have these models
+from db_initialize import Account, Camera, Counter, ROI, Visitor
 from db_configure import SessionLocal
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 
-# Get SECRET_KEY from environment or dynamically generation
+# Set up logging configuration
+logging.basicConfig(level=logging.INFO)
+
+# Get SECRET_KEY from environment or dynamically generate it
 SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_hex(32))  # Generates a 32-byte hex key if not found in env
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -38,7 +42,8 @@ class PasswordRecoveryData(BaseModel):
 def recover_password(recovery_data: PasswordRecoveryData, db: Session):
     account = db.query(Account).filter(Account.email == recovery_data.email).first()
     if not account:
-        raise HTTPException(status_code=404, detail="Email not registered")
+        logging.warning("Attempted password recovery with unregistered email: %s", recovery_data.email)
+        return {"message": "Email not registered"}
     return {"message": f"Your password is: {account.password}"}
 
 # Function to create a JWT token
@@ -54,25 +59,23 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 # Function to verify and decode JWT token
 def verify_token(token: str):
-    credentials_exception = HTTPException(
-        status_code=HTTPException.status_code,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
-            raise credentials_exception
+            logging.warning("Token validation failed: Username not found in token")
+            return {"message": "Could not validate credentials"}
         return TokenData(username=username)
-    except JWTError:
-        raise credentials_exception
+    except JWTError as e:
+        logging.error("Token validation error: %s", e)
+        return {"message": "Could not validate credentials"}
 
 # Function to handle login
 def login(login_data: LoginData, db: Session):
     account = db.query(Account).filter(Account.user_name == login_data.username).first()
     if not account or account.password != login_data.password:
-        raise HTTPException(status_code=400, detail="Username or password is wrong")
+        logging.warning("Login failed for username: %s", login_data.username)
+        return {"message": "Username or password is wrong"}
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={"sub": account.user_name}, expires_delta=access_token_expires)
@@ -91,10 +94,12 @@ def stream_video(filename: str, frame_rate: int, VIDEO_DIRECTORY: str):
 
     video_path = os.path.join(VIDEO_DIRECTORY, filename)
     if not os.path.isfile(video_path):
+        logging.error("Video file not found: %s", video_path)
         return {"error": "File not found"}
 
     video_capture = cv2.VideoCapture(video_path)
     if not video_capture.isOpened():
+        logging.error("Unable to open video file: %s", video_path)
         return {"error": "Unable to open video file"}
 
     frame_time = 1.0 / frame_rate  # Time between frames in seconds
