@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from db_initialize import Account, Camera, Counter, ROI, Visitor 
+from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
 from service_functions import (
     recover_password,
     login,
@@ -12,6 +12,10 @@ from service_functions import (
     get_counter_list,
     get_roi_list,
     get_visitor_list,
+    get_activity_list,
+    get_notification_list,
+    least_visited_counter,
+    most_visited_counter,
     PasswordRecoveryData,
     LoginData,
     get_db,
@@ -55,12 +59,11 @@ def stream_video_endpoint(filename: str, frame_rate: int = 10, token: str = Depe
     return stream_video(filename, frame_rate, VIDEO_DIRECTORY)
 
 # Database query endpoints (authentication required)
-
 @app.get("/account_list")
 def get_account_list(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     token_data = verify_token(token)  # Ensure token is valid
     try:
-        accounts = db.query(Account).all()  # Fetch accounts from the database
+        accounts = get_account_list(db)  # Fetch accounts from the database
         return accounts
     except Exception as e:
         logging.error(f"Error fetching account list: {e}")  # Log the error for debugging
@@ -105,3 +108,44 @@ def get_visitor_list_endpoint(db: Session = Depends(get_db), token: str = Depend
     except Exception as e:
         logging.error(f"Error fetching visitor list: {e}")  # Log the error for debugging
         return {"message": "Error fetching visitor list"}  # Return a simple message
+
+@app.get("/activity_list")
+def get_activity_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    token_data = verify_token(token)  # Verifying the token
+    try:
+        activities = get_activity_list(db)  # Fetch activity list from the database
+        return activities
+    except Exception as e:
+        logging.error(f"Error fetching activity list: {e}")  # Log the error for debugging
+        return {"message": "Error fetching activity list"}  # Return a simple message
+
+@app.get("/notification_list")
+def get_notification_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    token_data = verify_token(token)  # Verifying the token
+    try:
+        notifications = get_notification_list(db)  # Fetch notification list from the database
+        return notifications
+    except Exception as e:
+        logging.error(f"Error fetching notification list: {e}")  # Log the error for debugging
+        return {"message": "Error fetching notification list"}  # Return a simple message
+
+# New endpoints for least and most visited counters
+@app.get("/least_visited_counter")
+def least_visited_counter_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    token_data = verify_token(token)  # Verifying the token
+    try:
+        result = least_visited_counter(db)
+        return result
+    except Exception as e:
+        logging.error(f"Error fetching least visited counter: {e}")
+        return {"message": "Error fetching least visited counter"}
+
+@app.get("/most_visited_counter")
+def most_visited_counter_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    token_data = verify_token(token)  # Verifying the token
+    try:
+        result = most_visited_counter(db)
+        return result
+    except Exception as e:
+        logging.error(f"Error fetching most visited counter: {e}")
+        return {"message": "Error fetching most visited counter"}
