@@ -1,7 +1,7 @@
 import os
 import secrets
 import logging
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
@@ -74,13 +74,19 @@ def verify_token(token: str):
 # Function to handle login
 def login(login_data: LoginData, db: Session):
     account = db.query(Account).filter(Account.user_name == login_data.username).first()
+    
+    # If the username or password is incorrect, raise HTTP 401 (Unauthorized) error
     if not account or account.password != login_data.password:
         logging.warning("Login failed for username: %s", login_data.username)
-        return {"message": "Username or password is wrong"}
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Username or password is wrong",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={"sub": account.user_name}, expires_delta=access_token_expires)
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer"} 
 
 # Function for streaming video (unchanged)
 def stream_video(filename: str, frame_rate: int, VIDEO_DIRECTORY: str):
