@@ -7,7 +7,7 @@ from service_functions import (
     recover_password,
     login,
     stream_video,
-    get_account_list,
+    get_account_list,  # Ensure this is the correct function
     get_camera_list,
     get_counter_list,
     get_roi_list,
@@ -60,10 +60,10 @@ def stream_video_endpoint(filename: str, frame_rate: int = 10, token: str = Depe
 
 # Database query endpoints (authentication required)
 @app.get("/account_list")
-def get_account_list(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def get_account_list_endpoint(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     token_data = verify_token(token)  # Ensure token is valid
     try:
-        accounts = get_account_list(db)  # Fetch accounts from the database
+        accounts = db.query(Account).all()  # Fetch accounts from the database using SQLAlchemy ORM
         return accounts
     except Exception as e:
         logging.error(f"Error fetching account list: {e}")  # Log the error for debugging
