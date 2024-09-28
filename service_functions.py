@@ -2,6 +2,7 @@ import os
 import secrets
 import logging
 from fastapi import Depends, HTTPException, status
+from starlette.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
@@ -9,6 +10,9 @@ from db_configure import SessionLocal
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from sqlalchemy import func
+import mimetypes  # Ensure this import is included
+
+
 
 # Set up logging configuration
 logging.basicConfig(level=logging.INFO)
@@ -88,40 +92,24 @@ def login(login_data: LoginData, db: Session):
     access_token = create_access_token(data={"sub": account.user_name}, expires_delta=access_token_expires)
     return {"access_token": access_token, "token_type": "bearer"} 
 
-# Function for streaming video (unchanged)
-def stream_video(filename: str, frame_rate: int, VIDEO_DIRECTORY: str):
-    import cv2
-    import os
-    import time
-    from fastapi.responses import StreamingResponse
+# Function for streaming video
+# Function for streaming video
+def stream_video(filename: str, frame_rate: int = 10, video_directory: str = "Videos"):
+    file_path = os.path.join(video_directory, filename)
 
-    allowed_extensions = [".mp4", ".avi"]
-    if not any(filename.endswith(ext) for ext in allowed_extensions):
-        return {"error": "Invalid file extension. Only .mp4 and .avi are allowed."}
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Video file not found")
 
-    video_path = os.path.join(VIDEO_DIRECTORY, filename)
-    if not os.path.isfile(video_path):
-        logging.error("Video file not found: %s", video_path)
-        return {"error": "File not found"}
+    # Determine the correct MIME type
+    mime_type, _ = mimetypes.guess_type(file_path)
+    if not mime_type:
+        mime_type = 'application/octet-stream'  # Fallback type
 
-    video_capture = cv2.VideoCapture(video_path)
-    if not video_capture.isOpened():
-        logging.error("Unable to open video file: %s", video_path)
-        return {"error": "Unable to open video file"}
+    # You can implement the frame rate control here (e.g., by skipping frames based on the frame_rate value)
 
-    frame_time = 1.0 / frame_rate  # Time between frames in seconds
+    return StreamingResponse(open(file_path, mode="rb"), media_type=mime_type)
 
-    def generate_video_stream():
-        while video_capture.isOpened():
-            success, frame = video_capture.read()
-            if not success:
-                break
-            _, buffer = cv2.imencode('.jpg', frame)
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n\r\n')
-            time.sleep(frame_time)
 
-    return StreamingResponse(generate_video_stream(), media_type="multipart/x-mixed-replace; boundary=frame")
 
 # Function to get account list
 def get_account_list(db: Session):
