@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
-from service_functions_2 import (
+from service_functions import (
     recover_password,
     login,
     stream_video,
