@@ -1,9 +1,10 @@
+import os
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
-from service_functions import (
+from service_functions_2 import (
     recover_password,
     login,
     stream_video,
@@ -19,7 +20,8 @@ from service_functions import (
     PasswordRecoveryData,
     LoginData,
     get_db,
-    verify_token
+    verify_token,
+    TokenData
 )
 
 import logging
@@ -54,9 +56,17 @@ def login_endpoint(login_data: LoginData, db: Session = Depends(get_db)):
 
 # Video streaming endpoint (authentication required)
 @app.get("/video_play/{filename}")
-def stream_video_endpoint(filename: str, frame_rate: int = 10, token: str = Depends(oauth2_scheme)):
+async def stream_video_endpoint(filename: str, frame_rate: int = 10, token: str = Depends(oauth2_scheme)):
     token_data = verify_token(token)  # Verifying the token
+    if not isinstance(token_data, TokenData):  # Ensure the token is valid
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    video_path = os.path.join(VIDEO_DIRECTORY, filename)
+    if not os.path.isfile(video_path):
+        raise HTTPException(status_code=404, detail="Video file not found")
+    
     return stream_video(filename, frame_rate, VIDEO_DIRECTORY)
+
 
 # Database query endpoints (authentication required)
 @app.get("/account_list")
