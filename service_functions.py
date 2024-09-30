@@ -10,8 +10,7 @@ from db_configure import SessionLocal
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from sqlalchemy import func
-import mimetypes  # Ensure this import is included
-
+from typing import Optional
 
 
 # Set up logging configuration
@@ -37,7 +36,7 @@ class LoginData(BaseModel):
 
 # Token data model
 class TokenData(BaseModel):
-    username: str | None = None
+    username: Optional[str] = None  # Using Optional for compatibility with older Python versions
 
 # Password recovery data model for request body
 class PasswordRecoveryData(BaseModel):
@@ -52,7 +51,7 @@ def recover_password(recovery_data: PasswordRecoveryData, db: Session):
     return {"message": f"Your password is: {account.password}"}
 
 # Function to create a JWT token
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -92,22 +91,7 @@ def login(login_data: LoginData, db: Session):
     access_token = create_access_token(data={"sub": account.user_name}, expires_delta=access_token_expires)
     return {"access_token": access_token, "token_type": "bearer"} 
 
-# Function for streaming video
-# Function for streaming video
-def stream_video(filename: str, frame_rate: int = 10, video_directory: str = "Videos"):
-    file_path = os.path.join(video_directory, filename)
 
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Video file not found")
-
-    # Determine the correct MIME type
-    mime_type, _ = mimetypes.guess_type(file_path)
-    if not mime_type:
-        mime_type = 'application/octet-stream'  # Fallback type
-
-    # You can implement the frame rate control here (e.g., by skipping frames based on the frame_rate value)
-
-    return StreamingResponse(open(file_path, mode="rb"), media_type=mime_type)
 
 
 
