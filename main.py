@@ -1,5 +1,12 @@
 import os
-from fastapi import FastAPI, Depends
+import cv2
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+import time
+import logging
+
+
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -7,7 +14,6 @@ from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Noti
 from service_functions import (
     recover_password,
     login,
-    stream_video,
     get_account_list,  # Ensure this is the correct function
     get_camera_list,
     get_counter_list,
@@ -24,7 +30,6 @@ from service_functions import (
     TokenData
 )
 
-import logging
 
 logging.basicConfig(level=logging.INFO)
 
@@ -44,6 +49,9 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 VIDEO_DIRECTORY = "Videos/"
 
+class VideoStreamRequest(BaseModel):
+    filename: str
+
 # Endpoint for password recovery
 @app.post("/recover_password")
 def recover_password_endpoint(recovery_data: PasswordRecoveryData, db: Session = Depends(get_db)):
@@ -54,18 +62,66 @@ def recover_password_endpoint(recovery_data: PasswordRecoveryData, db: Session =
 def login_endpoint(login_data: LoginData, db: Session = Depends(get_db)):
     return login(login_data, db)
 
-# Video streaming endpoint (authentication required)
-@app.get("/video_play/{filename}")
-async def stream_video_endpoint(filename: str, frame_rate: int = 10, token: str = Depends(oauth2_scheme)):
-    token_data = verify_token(token)  # Verifying the token
-    if not isinstance(token_data, TokenData):  # Ensure the token is valid
-        raise HTTPException(status_code=401, detail="Invalid token")
-    
+
+# Set the directory where video files are stored
+VIDEO_DIRECTORY = "Videos/"  # Path to the Videos directory
+
+@app.get("/video/{filename}")
+def stream_video(filename: str):
+    # Allowed video extensions
+    allowed_extensions = [".mp4", ".avi"]
+
+    # Ensure the file has an allowed extension
+    if not any(filename.endswith(ext) for ext in allowed_extensions):
+        return {"error": "Invalid file extension. Only .mp4 and .avi are allowed."}
+
+    # Construct the full video file path
     video_path = os.path.join(VIDEO_DIRECTORY, filename)
+
+    # Check if the file exists
     if not os.path.isfile(video_path):
-        raise HTTPException(status_code=404, detail="Video file not found")
-    
-    return stream_video(filename, frame_rate, VIDEO_DIRECTORY)
+        return {"error": "File not found"}
+
+    # Open the video using OpenCV
+    video_capture = cv2.VideoCapture(video_path)
+
+    # Check if the video can be opened
+    if not video_capture.isOpened():
+        return {"error": "Unable to open video file"}
+
+    # Get the video's frames per second (FPS)
+    fps = video_capture.get(cv2.CAP_PROP_FPS)
+    frame_duration = 1 / fps  # Time in seconds for each frame
+
+    # Generator function to stream video frames
+    def generate_video_stream():
+        while video_capture.isOpened():
+            start_time = time.time()  # Get the start time of frame processing
+            success, frame = video_capture.read()
+            if not success:
+                break
+
+            # Convert the frame to JPG format
+            _, buffer = cv2.imencode('.jpg', frame)
+
+            # Yield the frame as a byte sequence
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n\r\n')
+
+            # Sleep to match the frame duration based on FPS
+            elapsed_time = time.time() - start_time
+            time.sleep(max(0, frame_duration - elapsed_time))
+
+    # Return streaming response with multipart data
+    return StreamingResponse(generate_video_stream(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+
+
+
+
+
+
+
 
 
 # Database query endpoints (authentication required)
