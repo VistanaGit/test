@@ -168,8 +168,9 @@ def get_visitor_list_endpoint(db: Session = Depends(get_db), token: str = Depend
         return {"message": "Error fetching visitor list"}  # Return a simple message
 
 @app.get("/activity_list")
-def get_activity_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
-    token_data = verify_token(token)  # Verifying the token
+#def get_activity_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+def get_activity_list_endpoint(db: Session = Depends(get_db)):
+    #token_data = verify_token(token)  # Verifying the token
     try:
         activities = get_activity_list(db)  # Fetch activity list from the database
         return activities
@@ -178,9 +179,8 @@ def get_activity_list_endpoint(db: Session = Depends(get_db), token: str = Depen
         return {"message": "Error fetching activity list"}  # Return a simple message
 
 @app.get("/notification_list")
-#def get_notification_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
-def get_notification_list_endpoint(db: Session = Depends(get_db)):
-    #token_data = verify_token(token)  # Verifying the token
+def get_notification_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    token_data = verify_token(token)  # Verifying the token
     try:
         notifications = get_notification_list(db)  # Fetch notification list from the database
         return notifications
