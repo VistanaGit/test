@@ -1,6 +1,6 @@
 from sqlalchemy import text
 from db_configure import SessionLocal
-from db_initialize import Visitor, ROI, Counter, Camera, Account  # Ensure Account is imported
+from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
 
 def reset_tables():
     session = SessionLocal()
@@ -10,7 +10,9 @@ def reset_tables():
         session.query(ROI).delete()
         session.query(Counter).delete()
         session.query(Camera).delete()
-        session.query(Account).delete()  # Delete from Account last
+        session.query(Account).delete()
+        session.query(Activity).delete()
+        session.query(Notification).delete()
 
         session.commit()
         print("All tables have been reset successfully!")
