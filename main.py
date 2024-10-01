@@ -6,7 +6,6 @@ from pydantic import BaseModel
 import time
 import logging
 
-
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -21,10 +20,12 @@ from service_functions import (
     get_visitor_list,
     get_activity_list,
     get_notification_list,
+    get_total_visitors,
     least_visited_counter,
     most_visited_counter,
     PasswordRecoveryData,
     LoginData,
+    get_logged_in_user,
     get_db,
     verify_token,
     TokenData
@@ -115,7 +116,6 @@ def stream_video(filename: str):
     # Return streaming response with multipart data
     return StreamingResponse(generate_video_stream(), media_type="multipart/x-mixed-replace; boundary=frame")
 
-
 # Database query endpoints (authentication required)
 @app.get("/account_list")
 def get_account_list_endpoint(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
@@ -187,7 +187,18 @@ def get_notification_list_endpoint(db: Session = Depends(get_db), token: str = D
         logging.error(f"Error fetching notification list: {e}")  # Log the error for debugging
         return {"message": "Error fetching notification list"}  # Return a simple message
 
-# New endpoints for least and most visited counters
+@app.get("/total_visitors")
+async def total_visitors_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):    
+    token_data = verify_token(token)  # Verifying the token
+    try:
+        total = get_total_visitors(db)
+        return {"total_visitors": total}
+    except Exception as e:
+        logging.error(f"Error fetching total number of visitors: {e}")
+        return {"message": "Error fetching total number of visitors"}
+    
+
+# New endpoints for least visited counters
 @app.get("/least_visited_counter")
 def least_visited_counter_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
     token_data = verify_token(token)  # Verifying the token
@@ -198,6 +209,7 @@ def least_visited_counter_endpoint(db: Session = Depends(get_db), token: str = D
         logging.error(f"Error fetching least visited counter: {e}")
         return {"message": "Error fetching least visited counter"}
 
+# New endpoints for most visited counters
 @app.get("/most_visited_counter")
 def most_visited_counter_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
     token_data = verify_token(token)  # Verifying the token
@@ -207,3 +219,22 @@ def most_visited_counter_endpoint(db: Session = Depends(get_db), token: str = De
     except Exception as e:
         logging.error(f"Error fetching most visited counter: {e}")
         return {"message": "Error fetching most visited counter"}
+
+# New endpoint to get the logged-in user's details (first_name and last_name)
+@app.get("/logged_in_user")
+def logged_in_user_endpoint(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    # Verify token to ensure valid credentials
+    token_data = verify_token(token)
+    
+    if "message" in token_data:
+        raise HTTPException(status_code=401, detail=token_data["message"])
+    
+    try:
+        user_details = get_logged_in_user(token_data.username, db)  # Fetch user details
+        if user_details:
+            return user_details
+        else:
+            return {"message": "User not found"}
+    except Exception as e:
+        logging.error(f"Error fetching logged-in user details: {e}")
+        raise HTTPException(status_code=500, detail="Error fetching user details")
