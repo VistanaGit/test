@@ -130,15 +130,21 @@ def get_notification_list(db: Session):
     notifications = db.query(Notification).all()  # a Notification model
     return notifications
 
+# Function to get total number of visitors
+def get_total_visitors(db: Session):
+    total_visitors = db.query(func.count(Visitor.person_id)).filter(Visitor.person_id.isnot(None)).scalar()
+    return total_visitors
+
+
 # Function to find the least visited counter today
 def least_visited_counter(db: Session):
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     
     least_visited_result = (
-        db.query(Visitor.counter_id, func.count(Visitor.persons_count).label('visitor_count'))
-          .filter(Visitor.current_datetime >= today_start)
+        db.query(Visitor.counter_id, func.count(Visitor.person_id).label('visitor_count'))
+          #.filter(Visitor.current_datetime >= today_start)
           .group_by(Visitor.counter_id)
-          .order_by(func.count(Visitor.persons_count).asc())
+          .order_by(func.count(Visitor.person_id).asc())
           .first()
     )
     
@@ -153,10 +159,10 @@ def most_visited_counter(db: Session):
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     
     most_visited_result = (
-        db.query(Visitor.counter_id, func.count(Visitor.persons_count).label('visitor_count'))
-          .filter(Visitor.current_datetime >= today_start)
+        db.query(Visitor.counter_id, func.count(Visitor.person_id).label('visitor_count'))
+          #.filter(Visitor.current_datetime >= today_start)
           .group_by(Visitor.counter_id)
-          .order_by(func.count(Visitor.persons_count).desc())
+          .order_by(func.count(Visitor.person_id).desc())
           .first()
     )
     
@@ -165,3 +171,12 @@ def most_visited_counter(db: Session):
         return {"counter_id": counter_id, "visitor_count": visitor_count}
     
     return {"message": "No visitors found today."}
+
+# New function to fetch first_name and last_name of the logged-in user
+def get_logged_in_user(username: str, db: Session):
+    account = db.query(Account).filter(Account.user_name == username).first()
+    if account:
+        return {"first_name": account.first_name, "last_name": account.last_name}
+    else:
+        logging.warning(f"User with username {username} not found.")
+        return None
