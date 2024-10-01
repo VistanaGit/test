@@ -92,7 +92,6 @@ def insert_visitors():
                     person_duration_in_roi=120,
                     person_age_group="young",
                     person_gender="male",
-                    persons_count=3,
                     current_datetime=datetime(2024, 9, 19, 10)),
             Visitor(person_id=2,
                     roi_id=2,
@@ -101,8 +100,7 @@ def insert_visitors():
                     person_duration_in_roi=150,
                     person_age_group="adult",
                     person_gender="female",
-                    persons_count=2,
-                    current_datetime=datetime(2024 ,9 ,19 ,11)),
+                    current_datetime=datetime(2024, 9, 19, 11)),
             Visitor(person_id=3,
                     roi_id=3,
                     counter_id=2,
@@ -110,8 +108,7 @@ def insert_visitors():
                     person_duration_in_roi=90,
                     person_age_group="teenager",
                     person_gender="male",
-                    persons_count=1,
-                    current_datetime=datetime(2024 ,9 ,27 ,12)),
+                    current_datetime=datetime(2024, 9, 27, 12)),
             Visitor(person_id=4,
                     roi_id=4,
                     counter_id=2,
@@ -119,8 +116,7 @@ def insert_visitors():
                     person_duration_in_roi=110,
                     person_age_group="young",
                     person_gender="female",
-                    persons_count=4,
-                    current_datetime=datetime(2024 ,9 ,19 ,13)),
+                    current_datetime=datetime(2024, 9, 19, 13)),
             Visitor(person_id=5,
                     roi_id=5,
                     counter_id=3,
@@ -128,26 +124,38 @@ def insert_visitors():
                     person_duration_in_roi=200,
                     person_age_group="senior",
                     person_gender="male",
-                    persons_count=5,
-                    current_datetime=datetime(2024 ,9 ,27 ,14))
+                    current_datetime=datetime(2024, 9, 27, 14))
         ]
-        
-        # Generate additional visitor records (25 total)
-        for i in range(6 ,31):
+
+        # Ensure the desired distribution of counter_ids
+        counter_1_count = 5  # Already inserted 2 records for counter_id 1
+        counter_2_count = 2  # Already inserted 2 records for counter_id 2
+        counter_3_count = 1  # Already inserted 1 record for counter_id 3
+
+        for i in range(6, 31):
+            if counter_1_count < 7:
+                counter_id = 1
+                counter_1_count += 1
+            elif counter_2_count < 9:
+                counter_id = 2
+                counter_2_count += 1
+            else:
+                counter_id = 3
+                counter_3_count += 1
+
             visitors.append(
                 Visitor(
-                person_id=i ,
-                roi_id=i % 5 + 1 ,
-                counter_id=(i - 1) % 3 + 1 ,
-                cam_id=(i - 1) % 3 + 1 ,
-                person_duration_in_roi=(i * 10) % 300 + 60 ,
-                person_age_group=['young' ,'adult' ,'teenager' ,'senior' ,'young'][i % 5] ,
-                person_gender=['male' ,'female'][i % 2] ,
-                persons_count=i % 5 + 1 ,
-                current_datetime=datetime.now() + timedelta(hours=i)
+                    person_id=i,
+                    roi_id=i % 5 + 1,
+                    counter_id=counter_id,
+                    cam_id=(i - 1) % 3 + 1,
+                    person_duration_in_roi=(i * 10) % 300 + 60,
+                    person_age_group=['young', 'adult', 'teenager', 'senior', 'young'][i % 5],
+                    person_gender=['male', 'female'][i % 2],
+                    current_datetime=datetime.now() + timedelta(hours=i)
                 )
             )
-        
+
         session.add_all(visitors)
         session.commit()
         print("Visitors inserted successfully!")
@@ -156,6 +164,7 @@ def insert_visitors():
         print(f"An error occurred while inserting visitors data: {e}")
     finally:
         session.close()
+
 
 # Insert activities data
 def insert_activities():
