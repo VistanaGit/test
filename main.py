@@ -116,14 +116,6 @@ def stream_video(filename: str):
     return StreamingResponse(generate_video_stream(), media_type="multipart/x-mixed-replace; boundary=frame")
 
 
-
-
-
-
-
-
-
-
 # Database query endpoints (authentication required)
 @app.get("/account_list")
 def get_account_list_endpoint(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
@@ -186,8 +178,9 @@ def get_activity_list_endpoint(db: Session = Depends(get_db), token: str = Depen
         return {"message": "Error fetching activity list"}  # Return a simple message
 
 @app.get("/notification_list")
-def get_notification_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
-    token_data = verify_token(token)  # Verifying the token
+#def get_notification_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+def get_notification_list_endpoint(db: Session = Depends(get_db)):
+    #token_data = verify_token(token)  # Verifying the token
     try:
         notifications = get_notification_list(db)  # Fetch notification list from the database
         return notifications
