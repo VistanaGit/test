@@ -37,8 +37,7 @@ try:
         cam_id = Column(Integer)
         person_duration_in_roi = Column(Float, nullable=False)
         person_age_group = Column(String)
-        person_gender = Column(String)
-        persons_count = Column(Integer, nullable=False)         
+        person_gender = Column(String)    
         current_datetime = Column(DateTime, nullable=False)
 
     print("Model class for tbl_visitors defined successfully.")
