@@ -6,6 +6,7 @@ from pydantic import BaseModel
 import time
 import logging
 
+
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -23,9 +24,13 @@ from service_functions import (
     get_total_visitors,
     least_visited_counter,
     most_visited_counter,
+    age_monitoring,
+    gender_monitoring,
+    get_system_info,
     PasswordRecoveryData,
     LoginData,
     get_logged_in_user,
+    get_latest_disabled_camera,
     get_db,
     verify_token,
     TokenData
@@ -187,6 +192,33 @@ def get_notification_list_endpoint(db: Session = Depends(get_db), token: str = D
         logging.error(f"Error fetching notification list: {e}")  # Log the error for debugging
         return {"message": "Error fetching notification list"}  # Return a simple message
 
+
+
+###########################################################################################
+################################ Dashboard Services #######################################
+###########################################################################################
+
+
+# New endpoint to get the logged-in user's details (first_name and last_name)
+@app.get("/logged_in_user")
+def logged_in_user_endpoint(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    # Verify token to ensure valid credentials
+    token_data = verify_token(token)
+    
+    if "message" in token_data:
+        raise HTTPException(status_code=401, detail=token_data["message"])
+    
+    try:
+        user_details = get_logged_in_user(token_data.username, db)  # Fetch user details
+        if user_details:
+            return user_details
+        else:
+            return {"message": "User not found"}
+    except Exception as e:
+        logging.error(f"Error fetching logged-in user details: {e}")
+        raise HTTPException(status_code=500, detail="Error fetching user details")
+
+
 @app.get("/total_visitors")
 async def total_visitors_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):    
     token_data = verify_token(token)  # Verifying the token
@@ -220,21 +252,48 @@ def most_visited_counter_endpoint(db: Session = Depends(get_db), token: str = De
         logging.error(f"Error fetching most visited counter: {e}")
         return {"message": "Error fetching most visited counter"}
 
-# New endpoint to get the logged-in user's details (first_name and last_name)
-@app.get("/logged_in_user")
-def logged_in_user_endpoint(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    # Verify token to ensure valid credentials
-    token_data = verify_token(token)
-    
-    if "message" in token_data:
-        raise HTTPException(status_code=401, detail=token_data["message"])
-    
+
+@app.post("/age_monitoring")
+async def age_monitoring_endpoint(selected_date_range: dict, 
+                                  db: Session = Depends(get_db),
+                                  token: str = Depends(oauth2_scheme)):
+    token_data = verify_token(token)  # Verifying the token
     try:
-        user_details = get_logged_in_user(token_data.username, db)  # Fetch user details
-        if user_details:
-            return user_details
-        else:
-            return {"message": "User not found"}
+        # Perform age monitoring operation using selected_date_range and db session
+        result = age_monitoring(selected_date_range, db)
+        return result
     except Exception as e:
-        logging.error(f"Error fetching logged-in user details: {e}")
-        raise HTTPException(status_code=500, detail="Error fetching user details")
+        logging.error(f"Error in age monitoring: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/gender_monitoring")
+async def gender_monitoring_endpoint(selected_date_range: dict, 
+                                    db: Session = Depends(get_db),
+                                    token: str = Depends(oauth2_scheme)):
+    token_data = verify_token(token)  # Verifying the token    
+    try:
+        # Perform gender monitoring operation using selected_date_range and db session
+        result = gender_monitoring(selected_date_range, db)
+        return result
+    except Exception as e:
+        logging.error(f"Error in gender monitoring: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/system_info")
+def get_system_info_route():
+    """
+    API endpoint to get both hardware specifications and current status.
+    """
+    system_info = get_system_info()
+    return system_info
+
+@app.get("/camera_notification", response_model=dict)
+def latest_disabled_camera(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    
+    token_data = verify_token(token)  # Verifying the token)
+    """
+    Fetch the latest modified disabled camera.
+    """
+    response = get_latest_disabled_camera(db)
+    return response  # Return the message from the service function
