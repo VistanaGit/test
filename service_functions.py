@@ -179,8 +179,19 @@ def least_visited_counter(db: Session):
 
 # Function to get total number of visitors
 def get_total_visitors(db: Session):
+    # Count the total number of visitors
     total_visitors = db.query(func.count(Visitor.person_id)).filter(Visitor.person_id.isnot(None)).scalar()
-    return total_visitors
+    
+    # Sum the total duration of all visitors in the ROI
+    total_duration = db.query(func.sum(Visitor.person_duration_in_roi)).scalar()
+    
+    # Calculate the average duration per visitor, rounded to two decimal places
+    average_duration = round(total_duration / total_visitors, 2) if total_visitors > 0 else 0.00
+    
+    return {
+        "total_visitors": total_visitors,
+        "average_duration": average_duration
+    }
 
 def most_visited_counter(db: Session):
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
