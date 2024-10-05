@@ -55,6 +55,7 @@ try:
         cam_mac = Column(String)
         cam_enable = Column(Boolean)
         cam_rtsp = Column(String)
+        cam_last_date_modified = Column(DateTime)
         cam_desc = Column(Text)
 
     print("Model class for tbl_cameras defined successfully.")
