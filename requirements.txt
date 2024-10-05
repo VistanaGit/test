@@ -21,5 +21,7 @@ opencv-python-headless==4.10.0.84
 pydantic[email]
 python-jose==3.3.0
 psutil==6.0.0
+GPUtil==1.4.0
+
 
 
