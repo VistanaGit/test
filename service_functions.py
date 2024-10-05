@@ -13,7 +13,7 @@ from sqlalchemy import func, desc
 from typing import Optional
 import psutil  # For CPU, memory, and disk usage
 import platform  # For hardware specs
-import GPUtil  # For GPU usage and specs
+import GPUtil  # For GPU usage and specs (needs 'gputil' library)
 
 
 # Set up logging configuration
@@ -149,21 +149,31 @@ def get_logged_in_user(username: str, db: Session):
         return None
 
 
-# Function to find the least visited counter today
+# Function to find the least visited counter today and calculate the average duration
 def least_visited_counter(db: Session):
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     
     least_visited_result = (
-        db.query(Visitor.counter_id, func.count(Visitor.person_id).label('visitor_count'))
-          #.filter(Visitor.current_datetime >= today_start)
-          .group_by(Visitor.counter_id)
-          .order_by(func.count(Visitor.person_id).asc())
-          .first()
+        db.query(
+            Visitor.counter_id,
+            func.count(Visitor.person_id).label('visitor_count'),
+            func.sum(Visitor.person_duration_in_roi).label('total_duration')
+        )
+        # the filter to restrict the query to today's visits
+        # .filter(Visitor.current_datetime >= today_start)
+        .group_by(Visitor.counter_id)
+        .order_by(func.count(Visitor.person_id).asc())  # Least visited first
+        .first()
     )
     
     if least_visited_result:
-        counter_id, visitor_count = least_visited_result
-        return {"counter_id": counter_id, "visitor_count": visitor_count}
+        counter_id, visitor_count, total_duration = least_visited_result
+        average_duration = round(total_duration / visitor_count, 2) if visitor_count > 0 else 0.00
+        return {
+            "counter_id": counter_id,
+            "visitor_count": visitor_count,
+            "average_duration": average_duration
+        }
     
     return {"message": "No visitors found today."}
 
@@ -172,21 +182,30 @@ def get_total_visitors(db: Session):
     total_visitors = db.query(func.count(Visitor.person_id)).filter(Visitor.person_id.isnot(None)).scalar()
     return total_visitors
 
-# Function to find the most visited counter today
 def most_visited_counter(db: Session):
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     
     most_visited_result = (
-        db.query(Visitor.counter_id, func.count(Visitor.person_id).label('visitor_count'))
-          #.filter(Visitor.current_datetime >= today_start)
-          .group_by(Visitor.counter_id)
-          .order_by(func.count(Visitor.person_id).desc())
-          .first()
+        db.query(
+            Visitor.counter_id,
+            func.count(Visitor.person_id).label('visitor_count'),
+            func.sum(Visitor.person_duration_in_roi).label('total_duration')
+        )
+        #  The filter to restrict the query to today's visits
+        # .filter(Visitor.current_datetime >= today_start)
+        .group_by(Visitor.counter_id)
+        .order_by(func.count(Visitor.person_id).desc())  # Most visited first
+        .first()
     )
     
     if most_visited_result:
-        counter_id, visitor_count = most_visited_result
-        return {"counter_id": counter_id, "visitor_count": visitor_count}
+        counter_id, visitor_count, total_duration = most_visited_result
+        average_duration = round(total_duration / visitor_count, 2) if visitor_count > 0 else 0.00
+        return {
+            "counter_id": counter_id,
+            "visitor_count": visitor_count,
+            "average_duration": average_duration
+        }
     
     return {"message": "No visitors found today."}
 
@@ -269,7 +288,6 @@ def gender_monitoring(selected_date_range: dict, db: Session):
         })
 
     return result
-
 
 
 def get_system_info():
