@@ -9,8 +9,11 @@ from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Noti
 from db_configure import SessionLocal
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
-from sqlalchemy import func
+from sqlalchemy import func, desc
 from typing import Optional
+import psutil  # For CPU, memory, and disk usage
+import platform  # For hardware specs
+import GPUtil  # For GPU usage and specs (needs 'gputil' library)
 
 
 # Set up logging configuration
@@ -130,10 +133,20 @@ def get_notification_list(db: Session):
     notifications = db.query(Notification).all()  # a Notification model
     return notifications
 
-# Function to get total number of visitors
-def get_total_visitors(db: Session):
-    total_visitors = db.query(func.count(Visitor.person_id)).filter(Visitor.person_id.isnot(None)).scalar()
-    return total_visitors
+
+
+###########################################################################################
+################################ Dashboard Services #######################################
+###########################################################################################
+
+# Function to fetch first_name and last_name of the logged-in user
+def get_logged_in_user(username: str, db: Session):
+    account = db.query(Account).filter(Account.user_name == username).first()
+    if account:
+        return {"first_name": account.first_name, "last_name": account.last_name}
+    else:
+        logging.warning(f"User with username {username} not found.")
+        return None
 
 
 # Function to find the least visited counter today
@@ -154,6 +167,11 @@ def least_visited_counter(db: Session):
     
     return {"message": "No visitors found today."}
 
+# Function to get total number of visitors
+def get_total_visitors(db: Session):
+    total_visitors = db.query(func.count(Visitor.person_id)).filter(Visitor.person_id.isnot(None)).scalar()
+    return total_visitors
+
 # Function to find the most visited counter today
 def most_visited_counter(db: Session):
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -172,11 +190,138 @@ def most_visited_counter(db: Session):
     
     return {"message": "No visitors found today."}
 
-# New function to fetch first_name and last_name of the logged-in user
-def get_logged_in_user(username: str, db: Session):
-    account = db.query(Account).filter(Account.user_name == username).first()
-    if account:
-        return {"first_name": account.first_name, "last_name": account.last_name}
+# Function to find the number of age groups of visitors for each counter within the specified date-time
+def age_monitoring(selected_date_range: dict, db: Session):
+    # Parse the 'start_date' from the request
+    start_date = datetime.strptime(selected_date_range['start_date'], '%Y-%m-%d %H:%M:%S')
+    # Set the time to 8 AM
+    start_date = start_date.replace(hour=8, minute=0, second=0)
+
+    # Parse the 'end_date' from the request
+    end_date = datetime.strptime(selected_date_range['end_date'], '%Y-%m-%d %H:%M:%S')
+
+    # Age groups as strings
+    age_groups = ['teenager', 'young', 'adult', 'senior']
+
+    # Get distinct counter_ids from the Visitor table
+    counters = db.query(Visitor.counter_id).distinct().all()
+
+    # Initialize result list
+    result = []
+
+    # Loop through each distinct counter_id
+    for counter_tuple in counters:
+        counter = counter_tuple[0]  # Extract the counter_id from the tuple
+        counter_data = {'counter_id': counter, 'age_groups': {group: 0 for group in age_groups}}
+        
+        # Loop through each age group and perform the count query
+        for group in age_groups:
+            count = db.query(func.count(Visitor.id)).filter(
+                Visitor.counter_id == counter,
+                Visitor.person_age_group == group,  # Compare to the string directly
+                Visitor.current_datetime.between(start_date, end_date)  # Filter by datetime range
+            ).scalar()  # Use scalar() to get the count result
+        
+            # Add the count to the counter data under the corresponding age group
+            counter_data['age_groups'][group] = count
+
+        # Append the counter data for each counter to the result list
+        result.append(counter_data)
+
+    # Return the aggregated result
+    return result
+
+# Function to find the number of male and femal visitors for each counter within the specified date-time
+def gender_monitoring(selected_date_range: dict, db: Session):
+    # Parse the 'start_date' from the request and set the time to 8 AM
+    start_date = datetime.strptime(selected_date_range['start_date'], '%Y-%m-%d %H:%M:%S')
+    start_date = start_date.replace(hour=8, minute=0, second=0)
+
+    # Parse the 'end_date' from the request
+    end_date = datetime.strptime(selected_date_range['end_date'], '%Y-%m-%d %H:%M:%S')
+
+    # Get all distinct counter_ids
+    counters = db.query(Visitor.counter_id).distinct().all()
+
+    result = []
+
+    # Loop through each counter and count male/female visitors in the selected date range
+    for counter in counters:
+        counter_id = counter[0]  # Extract the counter_id
+
+        male_count = db.query(Visitor).filter(
+            Visitor.counter_id == counter_id,
+            Visitor.person_gender == 'male',
+            Visitor.current_datetime.between(start_date, end_date)
+        ).count()
+
+        female_count = db.query(Visitor).filter(
+            Visitor.counter_id == counter_id,
+            Visitor.person_gender == 'female',
+            Visitor.current_datetime.between(start_date, end_date)
+        ).count()
+
+        # Add the results for the current counter to the response in the desired structure
+        result.append({
+            "counter_id": counter_id,
+            "male": male_count,
+            "female": female_count
+        })
+
+    return result
+
+
+
+def get_system_info():
+    """
+    Combines both hardware specifications and current usage status
+    into a single dictionary.
+    """
+    # Hardware specifications
+    cpu_model = platform.processor()
+    memory_info = psutil.virtual_memory()
+    memory_total = memory_info.total / (1024 ** 3)  # Convert to GB
+    disk_info = psutil.disk_partitions()
+    disk_model = disk_info[0].device if disk_info else "N/A"
+    gpus = GPUtil.getGPUs()
+    gpu_model = gpus[0].name if gpus else "N/A"
+
+    # Current usage status
+    cpu_usage = psutil.cpu_percent(interval=1)
+    memory_usage = memory_info.percent
+    disk_usage = psutil.disk_usage('/').percent
+    gpu_usage = gpus[0].load * 100 if gpus else 0  # Use first GPU if available
+
+    return {
+        "hardware_specs": {
+            "cpu_model": cpu_model,
+            "memory_total_gb": memory_total,
+            "disk_model": disk_model,
+            "gpu_model": gpu_model
+        },
+        "current_status": {
+            "cpu_usage": cpu_usage,
+            "memory_usage": memory_usage,
+            "disk_usage": disk_usage,
+            "gpu_usage": gpu_usage
+        }
+    }
+
+# Fetch the latest modified disabled camera
+def get_latest_disabled_camera(db: Session):
+    # Query to get all disabled cameras, ordered by last modified date descending
+    latest_disabled_camera = (
+        db.query(Camera)
+        .filter(Camera.cam_enable == False)
+        .order_by(desc(Camera.cam_last_date_modified))
+        .first()  # Get the first result, which will be the latest one
+    )
+
+    # Check if a disabled camera was found
+    if latest_disabled_camera:
+        return {
+            "message": f"The camera {latest_disabled_camera.cam_id} is out of reach.",
+            "cam_last_date_modified": latest_disabled_camera.cam_last_date_modified
+        }
     else:
-        logging.warning(f"User with username {username} not found.")
-        return None
+        return {"message": "No camera is out of reach."}  # Return this message if all cameras are enabled
