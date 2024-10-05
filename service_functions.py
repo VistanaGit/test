@@ -13,7 +13,7 @@ from sqlalchemy import func, desc
 from typing import Optional
 import psutil  # For CPU, memory, and disk usage
 import platform  # For hardware specs
-import GPUtil  # For GPU usage and specs (needs 'gputil' library)
+import GPUtil  # For GPU usage and specs
 
 
 # Set up logging configuration
