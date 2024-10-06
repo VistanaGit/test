@@ -5,13 +5,16 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import time
 import logging
+from typing import Optional
+from starlette.concurrency import run_in_threadpool  # <-- Import the correct module
 
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+from fastapi.responses import FileResponse
 from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
-from service_functions import (
+from service_functions_3 import (
     recover_password,
     login,
     get_account_list,  # Ensure this is the correct function
@@ -27,6 +30,13 @@ from service_functions import (
     age_monitoring,
     gender_monitoring,
     get_system_info,
+    get_visitors_by_date_range,
+    export_visitor_records_to_csv,
+    export_visitor_records_to_excel,
+    get_people_count_per_counter,
+    get_people_duration_per_counter,
+    report_details_of_selected_counter,
+    get_visitor_records,
     PasswordRecoveryData,
     LoginData,
     get_logged_in_user,
@@ -297,3 +307,155 @@ def latest_disabled_camera(db: Session = Depends(get_db), token: str = Depends(o
     """
     response = get_latest_disabled_camera(db)
     return response  # Return the message from the service function
+
+
+################################# REPORT PAGE ########################################
+
+@app.post("/report_visitor_table/")
+async def report_visitor_table(
+    start_date: str,
+    end_date: str,
+    counter_id: int = None,
+    cam_id: int = None,
+    age: str = None,
+    gender: str = None,
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
+    token_data = verify_token(token)  # Verifying the token
+    visitors = get_visitor_records(db, start_date, end_date, counter_id, cam_id, age, gender)
+    if not visitors:
+        raise HTTPException(status_code=404, detail="No visitors found for the specified date range.")
+    
+    return {"visitors": visitors}
+
+
+@app.post("/export_visitor_records/csv")
+def export_visitor_records_csv(
+    start_date: str,
+    end_date: str,
+    counter_id: int = None,
+    cam_id: int = None,
+    age: str = None,
+    gender: str = None,
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
+    token_data = verify_token(token)  # Verifying the token
+    if not start_date or not end_date:
+        raise HTTPException(status_code=400, detail="Start date and end date must be provided.")
+    
+    data = get_visitor_records(db, start_date, end_date, counter_id, cam_id, age, gender)
+    csv_file = export_visitor_records_to_csv(data)
+    return StreamingResponse(csv_file, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=visitor_records.csv"})
+
+@app.post("/export_visitor_records/excel")
+def export_visitor_records_excel(
+    start_date: str,
+    end_date: str,
+    counter_id: int = None,
+    cam_id: int = None,
+    age: str = None,
+    gender: str = None,
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
+    token_data = verify_token(token)  # Verifying the token
+    if not start_date or not end_date:
+        raise HTTPException(status_code=400, detail="Start date and end date must be provided.")
+    
+    data = get_visitor_records(db, start_date, end_date, counter_id, cam_id, age, gender)
+    excel_file = export_visitor_records_to_excel(data)
+    return StreamingResponse(excel_file, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": "attachment; filename=visitor_records.xlsx"})
+
+
+
+# Endpoint for reporting people count per counter
+@app.post("/report_people_count_per_counter/")
+def report_people_count_per_counter(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
+    # Verify the token
+    token_data = verify_token(token)  # Verifying the token
+
+    try:
+        # Fetch data from service_functions
+        people_count = get_people_count_per_counter(
+            db=db,
+            start_date=start_date,
+            end_date=end_date,
+            start_time=start_time,
+            end_time=end_time
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # If no data found, return 404
+    if not people_count:
+        raise HTTPException(status_code=404, detail="No data found for the given criteria.")
+
+    return {"result": people_count}
+
+
+@app.post("/report_people_duration_per_counter/")
+async def report_people_duration_per_counter(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
+    try:
+        # Verify token
+        token_data = verify_token(token)
+        
+        # Fetch the total attendance duration per counter
+        result = get_people_duration_per_counter(db, start_date, end_date, start_time, end_time)
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="No records found for the specified criteria.")
+        
+        return {"total_duration_per_counter": result}
+    
+    except HTTPException as e:
+        # Handle known HTTPExceptions and pass them through
+        raise e
+    
+    except ValueError as e:
+        # Handle value-related issues (e.g., date or time parsing errors)
+        raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
+    
+    except Exception as e:
+        # Handle unexpected errors
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
+@app.post("/report_details_of_selected_counter/")
+async def report_details_of_selected_counter_route(
+    counter_id: int,
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
+    try:
+
+        # Verify token
+        token_data = verify_token(token)
+
+        # Run the synchronous function in a threadpool to avoid blocking
+        result = await run_in_threadpool(report_details_of_selected_counter, db, counter_id)
+
+        return {"details": result}
+
+    except HTTPException as e:
+        # Handle known HTTPExceptions and pass them through
+        raise e
+
+    except Exception as e:
+        # Handle unexpected errors
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
