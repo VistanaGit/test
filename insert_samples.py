@@ -87,84 +87,52 @@ def insert_rois():
 def insert_visitors():
     session = SessionLocal()
     try:
-        visitors = [
-            Visitor(person_id=1, roi_id=1, counter_id=1,
-                    cam_id=1,
-                    person_duration_in_roi=120,
-                    person_age_group="young",
-                    person_gender="male",
-                    current_datetime=datetime(2024, 9, 19, 10)),
-            Visitor(person_id=2,
-                    roi_id=2,
-                    counter_id=1,
-                    cam_id=1,
-                    person_duration_in_roi=150,
-                    person_age_group="adult",
-                    person_gender="female",
-                    current_datetime=datetime(2024, 9, 19, 11)),
-            Visitor(person_id=3,
-                    roi_id=3,
-                    counter_id=2,
-                    cam_id=2,
-                    person_duration_in_roi=90,
-                    person_age_group="teenager",
-                    person_gender="male",
-                    current_datetime=datetime(2024, 9, 27, 12)),
-            Visitor(person_id=4,
-                    roi_id=4,
-                    counter_id=2,
-                    cam_id=2,
-                    person_duration_in_roi=110,
-                    person_age_group="young",
-                    person_gender="female",
-                    current_datetime=datetime(2024, 9, 19, 13)),
-            Visitor(person_id=5,
-                    roi_id=5,
-                    counter_id=3,
-                    cam_id=3,
-                    person_duration_in_roi=200,
-                    person_age_group="senior",
-                    person_gender="male",
-                    current_datetime=datetime(2024, 9, 27, 14))
-        ]
+        visitors = []
+        person_id_start = 1
+        total_records = 50  # Generating 50 records
 
-        # Ensure the desired distribution of counter_ids
-        counter_1_count = 5  # Already inserted 2 records for counter_id 1
-        counter_2_count = 2  # Already inserted 2 records for counter_id 2
-        counter_3_count = 1  # Already inserted 1 record for counter_id 3
+        # Desired distribution for counter_id
+        counter_distribution = {
+            1: 6,   # Moderate number of records
+            2: 6,   # Moderate number of records
+            3: 11,  # Most records for counter_id = 3
+            4: 5,   # Less records
+            5: 6,   # Moderate number of records
+            6: 4,   # Less records
+            7: 2,   # Less records
+            8: 4,   # Less records
+            9: 3,   # Fewer records
+            10: 3   # Least records for counter_id = 10
+        }
 
-        for i in range(6, 31):
-            if counter_1_count < 7:
-                counter_id = 1
-                counter_1_count += 1
-            elif counter_2_count < 9:
-                counter_id = 2
-                counter_2_count += 1
-            else:
-                counter_id = 3
-                counter_3_count += 1
-
-            visitors.append(
-                Visitor(
-                    person_id=i,
-                    roi_id=i % 5 + 1,
-                    counter_id=counter_id,
-                    cam_id=(i - 1) % 3 + 1,
-                    person_duration_in_roi=(i * 10) % 300 + 60,
-                    person_age_group=['young', 'adult', 'teenager', 'senior', 'young'][i % 5],
-                    person_gender=['male', 'female'][i % 2],
-                    current_datetime=datetime.now() + timedelta(hours=i)
+        # Generate visitor records based on distribution
+        person_id = person_id_start
+        for counter_id, count in counter_distribution.items():
+            for _ in range(count):
+                visitors.append(
+                    Visitor(
+                        person_id=person_id,
+                        roi_id=person_id % 5 + 1,  # Rotate roi_id between 1 and 5
+                        counter_id=counter_id,
+                        cam_id=counter_id,  # cam_id is the same as counter_id
+                        person_duration_in_roi=(person_id * 10) % 300 + 60,  # Random duration pattern
+                        person_age_group=['young', 'adult', 'teenager', 'senior'][person_id % 4],
+                        person_gender=['male', 'female'][person_id % 2],  # Alternating male/female
+                        current_datetime=datetime.now() + timedelta(hours=person_id)
+                    )
                 )
-            )
+                person_id += 1
 
         session.add_all(visitors)
         session.commit()
-        print("Visitors inserted successfully!")
+        print(f"{len(visitors)} visitors inserted successfully!")
     except Exception as e:
         session.rollback()
         print(f"An error occurred while inserting visitors data: {e}")
     finally:
         session.close()
+
+
 
 
 # Insert activities data
