@@ -1,8 +1,10 @@
 import os
 import secrets
 import logging
+import pandas as pd
 from fastapi import Depends, HTTPException, status
 from starlette.responses import StreamingResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
@@ -13,7 +15,8 @@ from sqlalchemy import func, desc
 from typing import Optional
 import psutil  # For CPU, memory, and disk usage
 import platform  # For hardware specs
-import GPUtil  # For GPU usage and specs
+import GPUtil  # For GPU usage and specs (needs 'gputil' library)
+from io import BytesIO
 
 
 # Set up logging configuration
@@ -354,3 +357,288 @@ def get_latest_disabled_camera(db: Session):
         }
     else:
         return {"message": "No camera is out of reach."}  # Return this message if all cameras are enabled
+
+
+################################# REPORT PAGE ########################################
+################################# REPORT PAGE ########################################
+################################# REPORT PAGE ########################################
+
+def get_visitors_by_date_range(db: Session, start_date: str, end_date: str):
+    # Convert string dates to datetime objects
+    start_datetime = datetime.strptime(start_date, "%Y-%m-%d")
+    end_datetime = datetime.strptime(end_date, "%Y-%m-%d")
+
+    # Fetch visitors within the specified date range
+    visitors = db.query(Visitor).filter(
+        Visitor.current_datetime >= start_datetime,
+        Visitor.current_datetime <= end_datetime
+    ).all()
+    
+    return visitors
+
+def get_visitor_records(db: Session, start_date: str, end_date: str, counter_id: int = None, cam_id: int = None, age: str = None, gender: str = None):
+    try:
+        # Convert string dates to datetime objects
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use 'YYYY-MM-DD'.")
+
+    # Base query
+    query = db.query(Visitor).filter(Visitor.current_datetime.between(start_date, end_date))
+
+    # Apply filters if provided
+    if counter_id is not None:
+        query = query.filter(Visitor.counter_id == counter_id)
+    
+    if cam_id is not None:
+        query = query.filter(Visitor.cam_id == cam_id)
+
+    if age is not None:
+        query = query.filter(Visitor.person_age_group == age)
+
+    if gender is not None:
+        query = query.filter(Visitor.person_gender == gender)
+
+    # Fetch records
+    records = query.all()
+    
+    if not records:
+        raise HTTPException(status_code=404, detail="No records found for the specified criteria.")
+
+    # Prepare data for CSV/Excel export
+    data = []
+    for idx, record in enumerate(records, start=1):
+        data.append({
+            "No": idx,
+            "Counter ID": record.counter_id,
+            "Camera ID": record.cam_id,
+            "Person ID": record.person_id,
+            "Attendance Duration": record.person_duration_in_roi,
+            "Gender": record.person_gender,
+            "Age": record.person_age_group,
+            "ROI": record.roi_id,
+            "Date-Time": record.current_datetime
+        })
+
+    return data
+def export_visitor_records_to_csv(data):
+    df = pd.DataFrame(data)
+    buffer = BytesIO()
+    df.to_csv(buffer, index=False)
+    buffer.seek(0)
+    return buffer
+
+def export_visitor_records_to_excel(data):
+    df = pd.DataFrame(data)
+    buffer = BytesIO()
+    df.to_excel(buffer, index=False, sheet_name='Visitor Records')
+    buffer.seek(0)
+    return buffer
+
+# Function to fetch people count per counter from the Visitor table
+def get_people_count_per_counter(
+    db: Session,
+    start_date: str = None,
+    end_date: str = None,
+    start_time: str = None,
+    end_time: str = None
+):
+    try:
+        # Date and time parsing, if provided
+        if start_date:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d')
+        if end_date:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d')
+
+        if start_time:
+            start_time = datetime.strptime(start_time, '%H:%M:%S').time()
+        if end_time:
+            end_time = datetime.strptime(end_time, '%H:%M:%S').time()
+
+        # Build the query to fetch records where person_id is not None
+        query = db.query(Visitor).filter(Visitor.person_id.isnot(None))
+
+        # Apply date and time filters if provided
+        if start_date and end_date:
+            query = query.filter(Visitor.current_datetime.between(start_date, end_date))
+
+        if start_time and end_time:
+            query = query.filter(
+                Visitor.current_datetime.between(
+                    datetime.combine(start_date, start_time) if start_date else None,
+                    datetime.combine(end_date, end_time) if end_date else None
+                )
+            )
+
+        # Group by counter_id and count total persons
+        records = query.with_entities(
+            Visitor.counter_id,
+            func.count(Visitor.person_id).label("total_persons")
+        ).group_by(Visitor.counter_id).all()
+
+        # Check if no records are found
+        if not records:
+            raise HTTPException(status_code=404, detail="No records found for the specified criteria.")
+        
+        # Return the result as a list of dicts
+        result = [{"counter_id": record.counter_id, "total_persons": record.total_persons} for record in records]
+        return result
+    
+    except ValueError as e:
+        # Handle any ValueError due to incorrect date or time format
+        raise HTTPException(status_code=400, detail=f"Invalid date or time format: {str(e)}")
+    
+    except Exception as e:
+        # Handle other unexpected errors
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
+
+# Function to fetch people time duration per counter from the Visitor table
+def get_people_duration_per_counter(
+    db: Session,
+    start_date: str = None,
+    end_date: str = None,
+    start_time: str = None,
+    end_time: str = None
+):
+    try:
+        # Date and time parsing, if provided
+        if start_date:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d')
+        if end_date:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d')
+
+        if start_time:
+            start_time = datetime.strptime(start_time, '%H:%M:%S').time()
+        if end_time:
+            end_time = datetime.strptime(end_time, '%H:%M:%S').time()
+
+        # Build the query to fetch records where person_duration_in_roi is not None
+        query = db.query(Visitor).filter(Visitor.person_duration_in_roi.isnot(None))
+
+        # Apply date and time filters if provided
+        if start_date and end_date:
+            query = query.filter(Visitor.current_datetime.between(start_date, end_date))
+
+        if start_time and end_time:
+            query = query.filter(
+                Visitor.current_datetime.between(
+                    datetime.combine(start_date, start_time) if start_date else None,
+                    datetime.combine(end_date, end_time) if end_date else None
+                )
+            )
+
+        # Group by counter_id and sum total attendance duration
+        records = query.with_entities(
+            Visitor.counter_id,
+            func.sum(Visitor.person_duration_in_roi).label("total_duration")
+        ).group_by(Visitor.counter_id).all()
+
+        # Check if no records are found
+        if not records:
+            raise HTTPException(status_code=404, detail="No records found for the specified criteria.")
+        
+        # Return the result as a list of dicts
+        result = [{"counter_id": record.counter_id, "total_duration": record.total_duration} for record in records]
+        return result
+    
+    except ValueError as e:
+        # Handle any ValueError due to incorrect date or time format
+        raise HTTPException(status_code=400, detail=f"Invalid date or time format: {str(e)}")
+    
+    except Exception as e:
+        # Handle other unexpected errors
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
+
+# Helper function to serialize SQLAlchemy query results
+def serialize_result(result):
+    if result is None:
+        return None
+    if hasattr(result, "_asdict"):  # For tuples from SQLAlchemy queries
+        return result._asdict()
+    elif isinstance(result, tuple):  # Handle cases where result is a tuple
+        return tuple(serialize_result(i) for i in result)
+    return result
+
+# This function retrieves various metrics based on the selected counter_id
+def report_details_of_selected_counter(db: Session, counter_id: int):
+    try:
+        # Validate counter_id
+        if counter_id <= 0:
+            raise HTTPException(status_code=400, detail="Invalid counter_id. It must be a positive integer.")
+
+        # Count total visits for the selected counter
+        total_visits = db.query(Visitor).filter(Visitor.counter_id == counter_id, Visitor.person_id.isnot(None)).count()
+
+        # Fetch the most visited date and time
+        most_visited_record = db.query(
+            Visitor.current_datetime,
+            func.count(Visitor.person_id).label("visit_count")
+        ).filter(Visitor.counter_id == counter_id, Visitor.person_id.isnot(None)) \
+         .group_by(Visitor.current_datetime) \
+         .order_by(func.count(Visitor.person_id).desc()).first()
+
+        # Handle case where no visits are found
+        if not most_visited_record:
+            most_visited_record = (None, 0)
+
+        # Fetch the least visited date and time
+        least_visited_record = db.query(
+            Visitor.current_datetime,
+            func.count(Visitor.person_id).label("visit_count")
+        ).filter(Visitor.counter_id == counter_id, Visitor.person_id.isnot(None)) \
+         .group_by(Visitor.current_datetime) \
+         .order_by(func.count(Visitor.person_id).asc()).first()
+
+        # Handle case where no visits are found
+        if not least_visited_record:
+            least_visited_record = (None, 0)
+
+        # Calculate total duration of visits in minutes
+        total_duration_seconds = db.query(func.sum(Visitor.person_duration_in_roi)).filter(
+            Visitor.counter_id == counter_id, Visitor.person_duration_in_roi.isnot(None)
+        ).scalar() or 0
+        total_duration_minutes = total_duration_seconds / 60
+
+        # Determine the most visited gender
+        most_visited_gender = db.query(
+            Visitor.person_gender,
+            func.count(Visitor.person_gender).label("gender_count")
+        ).filter(Visitor.counter_id == counter_id, Visitor.person_gender.isnot(None)) \
+         .group_by(Visitor.person_gender) \
+         .order_by(func.count(Visitor.person_gender).desc()).first()
+
+        # Handle case where no gender data is found
+        if not most_visited_gender:
+            most_visited_gender = (None, 0)
+
+        # Determine the most visited age group
+        most_visited_age_group = db.query(
+            Visitor.person_age_group,
+            func.count(Visitor.person_age_group).label("age_count")
+        ).filter(Visitor.counter_id == counter_id, Visitor.person_age_group.isnot(None)) \
+         .group_by(Visitor.person_age_group) \
+         .order_by(func.count(Visitor.person_age_group).desc()).first()
+
+        # Handle case where no age group data is found
+        if not most_visited_age_group:
+            most_visited_age_group = (None, 0)
+
+        return {
+            "total_visits": total_visits,
+            "most_visited_datetime": serialize_result(most_visited_record),
+            "least_visited_datetime": serialize_result(least_visited_record),
+            "total_duration_minutes": total_duration_minutes,
+            "most_visited_gender": serialize_result(most_visited_gender),
+            "most_visited_age_group": serialize_result(most_visited_age_group),
+        }
+
+    except HTTPException as http_exc:
+        # Handle HTTPExceptions separately to provide more specific messages
+        raise http_exc
+    except Exception as e:
+        # Log or handle unexpected errors
+        raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data: {str(e)}")
+
