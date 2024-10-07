@@ -37,6 +37,8 @@ from service_functions import (
     get_people_duration_per_counter,
     report_details_of_selected_counter,
     get_visitor_records,
+    get_most_recent_video,
+    stream_video_frames,
     PasswordRecoveryData,
     LoginData,
     get_logged_in_user,
@@ -459,3 +461,17 @@ async def report_details_of_selected_counter_route(
     except Exception as e:
         # Handle unexpected errors
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
+
+################################ CAMERA VIDEO PLAY ######################################
+
+@app.get("/camera_video_view")
+async def camera_video_view(cam_id: int, db: Session = Depends(get_db)):
+    # Get the most recent video for the selected camera
+    try:
+        video_path = get_most_recent_video(cam_id)
+    except HTTPException as e:
+        raise e
+    
+    # Stream the video frames
+    return StreamingResponse(stream_video_frames(video_path), media_type="multipart/x-mixed-replace; boundary=frame")
