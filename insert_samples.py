@@ -27,11 +27,11 @@ def insert_cameras():
     session = SessionLocal()
     try:
         cameras = [
-            Camera(cam_id=1, cam_name='Camera 1', cam_ip='192.168.1.10', cam_mac='00:0a:95:9d:68:16', cam_enable=True, cam_rtsp='rtsp://camera1', cam_desc='Front Door Camera', cam_last_date_modified='2024-10-01 08:00:00'),
-            Camera(cam_id=2, cam_name='Camera 2', cam_ip='192.168.1.11', cam_mac='00:0a:95:9d:68:17', cam_enable=True, cam_rtsp='rtsp://camera2', cam_desc='Back Door Camera', cam_last_date_modified='2024-10-02 10:30:00'),
-            Camera(cam_id=3, cam_name='Camera 3', cam_ip='192.168.1.12', cam_mac='00:0a:95:9d:68:18', cam_enable=False, cam_rtsp='rtsp://camera3', cam_desc='Parking Lot Camera', cam_last_date_modified='2024-10-03 12:15:00'),
-            Camera(cam_id=4, cam_name='Camera 4', cam_ip='192.168.1.13', cam_mac='00:0a:95:9d:68:19', cam_enable=True, cam_rtsp='rtsp://camera4', cam_desc='Lobby Camera', cam_last_date_modified='2024-10-04 14:45:00'),
-            Camera(cam_id=5, cam_name='Camera 5', cam_ip='192.168.1.14', cam_mac='00:0a:95:9d:68:20', cam_enable=False, cam_rtsp='rtsp://camera5', cam_desc='Garage Camera', cam_last_date_modified='2024-10-05 16:00:00')
+            Camera(cam_id=1, cam_name='Camera 1', cam_ip='192.168.1.10', cam_mac='00:0a:95:9d:68:16', cam_enable=True, cam_rtsp='rtsp://camera1', cam_desc='Front Door Camera', cam_last_date_modified='2024-10-01 08:00:00', age_detect_status=False, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True),
+            Camera(cam_id=2, cam_name='Camera 2', cam_ip='192.168.1.11', cam_mac='00:0a:95:9d:68:17', cam_enable=True, cam_rtsp='rtsp://camera2', cam_desc='Back Door Camera', cam_last_date_modified='2024-10-02 10:30:00', age_detect_status=True, gender_detect_status=False, person_counting_status=False, time_duration_calculation_status=True),
+            Camera(cam_id=3, cam_name='Camera 3', cam_ip='192.168.1.12', cam_mac='00:0a:95:9d:68:18', cam_enable=False, cam_rtsp='rtsp://camera3', cam_desc='Parking Lot Camera', cam_last_date_modified='2024-10-03 12:15:00', age_detect_status=True, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True),
+            Camera(cam_id=4, cam_name='Camera 4', cam_ip='192.168.1.13', cam_mac='00:0a:95:9d:68:19', cam_enable=True, cam_rtsp='rtsp://camera4', cam_desc='Lobby Camera', cam_last_date_modified='2024-10-04 14:45:00', age_detect_status=True, gender_detect_status=False, person_counting_status=True, time_duration_calculation_status=False),
+            Camera(cam_id=5, cam_name='Camera 5', cam_ip='192.168.1.14', cam_mac='00:0a:95:9d:68:20', cam_enable=False, cam_rtsp='rtsp://camera5', cam_desc='Garage Camera', cam_last_date_modified='2024-10-05 16:00:00', age_detect_status=False, gender_detect_status=True, person_counting_status=False, time_duration_calculation_status=True)
         ]
         session.add_all(cameras)
         session.commit()
