@@ -22,8 +22,9 @@ class Account(Base):
     first_name = Column(String)
     last_name = Column(String)
     tel = Column(String)
-    user_photo = Column(String)
-    user_status = Column(ENUM(UserStatusEnum, name="user_status_enum"), default='active')  # Add default status
+    user_department = Column(String)    
+    user_status = Column(Boolean, default=True)
+    #user_status = Column(ENUM(UserStatusEnum, name="user_status_enum"), default='active')  # Add default status
 
 # Define the Visitor Model
 try:
@@ -49,12 +50,17 @@ try:
     class Camera(Base):
         __tablename__ = 'tbl_cameras'
 
-        cam_id = Column(Integer, primary_key=True)
+        id = Column(Integer, primary_key=True, autoincrement=True)
+        cam_id = Column(Integer, unique=True)
         cam_name = Column(String)
         cam_ip = Column(String)
         cam_mac = Column(String)
         cam_enable = Column(Boolean)
         cam_rtsp = Column(String)
+        age_detect_status = Column(Boolean, default=True)  # Default value can be set to True
+        gender_detect_status = Column(Boolean, default=True)
+        person_counting_status = Column(Boolean, default=True)
+        time_duration_calculation_status = Column(Boolean, default=True)
         cam_last_date_modified = Column(DateTime)
         cam_desc = Column(Text)
 
