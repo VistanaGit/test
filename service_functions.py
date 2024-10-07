@@ -12,7 +12,8 @@ from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Noti
 from db_configure import SessionLocal
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, delete
+from sqlalchemy.exc import IntegrityError
 from typing import Optional, Generator
 import psutil  # For CPU, memory, and disk usage
 import platform  # For hardware specs
@@ -642,9 +643,9 @@ def report_details_of_selected_counter(db: Session, counter_id: int):
 
 
 
-################################# CAMERA VIDEO PLAY ########################################
-################################# CAMERA VIDEO PLAY ########################################
-################################# CAMERA VIDEO PLAY ########################################
+################################# CAMERA  ########################################
+################################# CAMERA  ########################################
+################################# CAMERA  ########################################
 
 
 VIDEOS_DIRECTORY = "Videos"
@@ -696,3 +697,206 @@ def stream_video_frames(video_path: str) -> Generator:
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
     
     cap.release()
+
+
+def get_next_cam_id(db: Session):
+    # Get the highest existing cam_id and increment it
+    last_camera = db.query(Camera).order_by(Camera.cam_id.desc()).first()
+    return (last_camera.cam_id + 1) if last_camera else 1
+
+
+def insert_camera(db: Session, cam_name: str, cam_ip: str, cam_mac: str, cam_enable: bool, cam_rtsp: str, cam_desc: str):
+    try:
+        # Get the next cam_id
+        next_cam_id = get_next_cam_id(db)
+
+        # Create a new Camera instance
+        new_camera = Camera(
+            cam_id=next_cam_id,
+            cam_name=cam_name,
+            cam_ip=cam_ip,
+            cam_mac=cam_mac,
+            cam_enable=cam_enable,  # Use the boolean value from the toggle button
+            cam_rtsp=cam_rtsp,
+            cam_desc=cam_desc,
+            cam_last_date_modified=datetime.now()  # Automatically set the current time
+        )
+
+        # Add and commit the new camera
+        db.add(new_camera)
+        db.commit()
+        print(f"New camera inserted with cam_id={next_cam_id}")
+    except Exception as e:
+        db.rollback()
+        print(f"An error occurred: {e}")
+        raise
+    finally:
+        db.close()
+
+def delete_camera_by_id(db: Session, cam_id: int):
+    try:
+        # Use delete query within the db session
+        db.execute(delete(Camera).where(Camera.cam_id == cam_id))
+        db.commit()
+        print(f"Camera with cam_id={cam_id} deleted successfully.")
+    except Exception as e:
+        db.rollback()
+        print(f"An error occurred: {e}")
+        raise
+    finally:
+        db.close()
+        
+    
+
+def camera_details_for_edit(db: Session, cam_id: int):
+    try:
+        # Fetch the camera details based on cam_id
+        camera = db.query(Camera).filter(Camera.cam_id == cam_id).first()
+        
+        if camera:
+            return {
+                "cam_ip": camera.cam_ip,
+                "cam_mac": camera.cam_mac,
+                "cam_enable": camera.cam_enable,
+                "cam_rtsp": camera.cam_rtsp,
+                "age_detect_status": camera.age_detect_status,
+                "gender_detect_status": camera.gender_detect_status,
+                "person_counting_status": camera.person_counting_status,
+                "time_duration_calculation_status": camera.time_duration_calculation_status
+            }
+        else:
+            return None
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+
+def camera_edit_save(db: Session, cam_id: int, cam_ip: str, cam_mac: str, cam_enable: bool, cam_rtsp: str, age_detect_status: bool, 
+                        gender_detect_status: bool, person_counting_status: bool, time_duration_calculation_status: bool):
+    try:
+        # Fetch the camera record to update
+        camera = db.query(Camera).filter(Camera.cam_id == cam_id).first()
+        
+        if not camera:
+            raise ValueError(f"Camera with cam_id={cam_id} not found.")  # Raise an error if the camera is not found
+
+        # Update camera fields
+        camera.cam_ip = cam_ip
+        camera.cam_mac = cam_mac
+        camera.cam_enable = cam_enable
+        camera.cam_rtsp = cam_rtsp
+        camera.age_detect_status = age_detect_status
+        camera.gender_detect_status = gender_detect_status
+        camera.person_counting_status = person_counting_status
+        camera.time_duration_calculation_status = time_duration_calculation_status
+        
+        # Commit the changes to the database
+        db.commit()
+        print(f"Camera with cam_id={cam_id} updated successfully.")
+        
+    except ValueError as ve:
+        print(f"Validation Error: {ve}")
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"An error occurred while updating camera: {e}")
+        raise  # Re-raise the exception for further handling
+    finally:
+        db.close()
+
+
+
+
+################################# ACCOUNT  ########################################
+################################# ACCOUNT  ########################################
+################################# ACCOUNT  ########################################
+
+def insert_account(db: Session, user_id: int, user_name: str, password: str, email: str, 
+                   first_name: str, last_name: str, tel: str, user_department: str, 
+                   user_status: bool):
+    # Check if user_id already exists
+    existing_account = db.query(Account).filter(Account.user_id == user_id).first()
+    
+    if existing_account:
+        raise HTTPException(status_code=400, detail="User ID already exists.")
+    
+    try:
+        new_account = Account(
+            user_id=user_id,
+            user_name=user_name,
+            password=password,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            tel=tel,
+            user_department=user_department,
+            user_status=user_status
+        )
+        
+        db.add(new_account)
+        db.commit()
+        print(f"New account inserted with user_id={user_id}")
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Error inserting account, possibly duplicate username or email.")
+    except Exception as e:
+        db.rollback()
+        print(f"An error occurred: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
+def delete_user_by_id(db: Session, user_id: int):
+    user = db.query(Account).filter(Account.user_id == user_id).first()  # Fetch user by user_id
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User with user_id={user_id} not found.")
+    
+    db.delete(user)  # Delete the user
+    db.commit()  # Commit the changes
+
+
+
+def user_details_for_edit(db: Session, user_id: int):
+    try:
+        user = db.query(Account).filter(Account.user_id == user_id).first()  # Fetch user by user_id
+        if not user:
+            raise HTTPException(status_code=404, detail=f"User with user_id={user_id} not found.")
+
+        # Return the user details
+        return {
+            "user_id": user.user_id,
+            "user_name": user.user_name,
+            "password": user.password,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "tel": user.tel,
+            "user_department": user.user_department,
+            "user_status": user.user_status
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred while fetching user details: {str(e)}")
+
+
+def user_edit_save(db: Session, user_id: int, user_name: str, password: str, email: str,
+                   first_name: str, last_name: str, tel: str, user_department: str, user_status: bool):
+    try:
+        # Fetch the user record by user_id
+        user = db.query(Account).filter(Account.user_id == user_id).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail=f"User with user_id={user_id} not found.")
+
+        # Update user details
+        user.user_name = user_name
+        user.password = password
+        user.email = email
+        user.first_name = first_name
+        user.last_name = last_name
+        user.tel = tel
+        user.user_department = user_department
+        user.user_status = user_status
+
+        db.commit()  # Save the changes to the database
+        return {"message": f"User with user_id={user_id} updated successfully."}
+    except Exception as e:
+        db.rollback()  # Rollback in case of any error
+        raise HTTPException(status_code=500, detail=f"An error occurred while updating user: {str(e)}")
