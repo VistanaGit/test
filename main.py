@@ -17,7 +17,7 @@ from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Noti
 from service_functions import (
     recover_password,
     login,
-    get_account_list,  # Ensure this is the correct function
+    get_account_list,
     get_camera_list,
     get_counter_list,
     get_roi_list,
@@ -39,6 +39,15 @@ from service_functions import (
     get_visitor_records,
     get_most_recent_video,
     stream_video_frames,
+    insert_camera,
+    get_next_cam_id,
+    delete_camera_by_id,
+    camera_details_for_edit,
+    camera_edit_save,
+    insert_account,
+    delete_user_by_id,
+    user_details_for_edit,
+    user_edit_save,
     PasswordRecoveryData,
     LoginData,
     get_logged_in_user,
@@ -463,15 +472,179 @@ async def report_details_of_selected_counter_route(
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
-################################ CAMERA VIDEO PLAY ######################################
+################################ CAMERAS ######################################
 
 @app.get("/camera_video_view")
-async def camera_video_view(cam_id: int, db: Session = Depends(get_db)):
+async def camera_video_view(cam_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
     # Get the most recent video for the selected camera
     try:
+        # Verify token
+        token_data = verify_token(token)
+
         video_path = get_most_recent_video(cam_id)
     except HTTPException as e:
         raise e
     
     # Stream the video frames
     return StreamingResponse(stream_video_frames(video_path), media_type="multipart/x-mixed-replace; boundary=frame")
+
+@app.post("/insert_camera")
+async def insert_camera_service(
+    cam_name: str,
+    cam_ip: str,
+    cam_mac: str,
+    cam_enable: bool,  # Boolean value from the toggle switch
+    cam_rtsp: str,
+    cam_desc: Optional[str] = None,
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
+
+    try:
+        # Verify token
+        token_data = verify_token(token)
+
+        # Get the next cam_id
+        next_cam_id = get_next_cam_id(db)
+
+        # Call the insert_camera function to insert the new record
+        insert_camera(db, cam_name, cam_ip, cam_mac, cam_enable, cam_rtsp, cam_desc)
+
+        # Return the next_cam_id as part of the response
+        return {"message": f"Camera inserted successfully with cam_id= {next_cam_id}", "cam_id": next_cam_id}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/delete_camera/{cam_id}")
+async def delete_camera_service(cam_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    try:
+        # Verify token
+        token_data = verify_token(token)
+
+        # Call the delete function and pass the session (db)
+        delete_camera_by_id(db, cam_id)
+        return {"message": f"Camera with cam_id={cam_id} deleted successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+
+@app.get("/camera_details_for_edit/{cam_id}")
+async def camera_details_for_edit_service(cam_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    try:
+        # Verify token
+        token_data = verify_token(token)
+        
+        # Call the camera_details_for_edit function from service_functions
+        camera_details = camera_details_for_edit(db, cam_id)
+        
+        if camera_details is not None:
+            return {"camera_details": camera_details}
+        else:
+            raise HTTPException(status_code=404, detail="Camera not found.")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+
+@app.put("/camera_edit_save/{cam_id}")
+async def camera_edit_save_service(
+    cam_id: int,
+    cam_ip: str,
+    cam_mac: str,
+    cam_enable: bool,
+    cam_rtsp: str,
+    age_detect_status: bool,
+    gender_detect_status: bool,
+    person_counting_status: bool,
+    time_duration_calculation_status: bool,
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
+    try:
+        # Verify token
+        token_data = verify_token(token)
+        
+        # Call the camera_edit_save function from service_functions
+        camera_edit_save(db, cam_id, cam_ip, cam_mac, cam_enable, cam_rtsp, age_detect_status, gender_detect_status, person_counting_status, time_duration_calculation_status)
+        return {"message": f"Camera with cam_id= {cam_id} updated successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+################################ ACCOUNT ######################################
+
+@app.post("/insert_account")
+async def insert_account_service(
+    user_id: int,
+    user_name: str,
+    password: str,
+    email: str,
+    first_name: str,
+    last_name: str,
+    tel: str,
+    user_department: str,
+    user_status: bool,
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
+    try:
+        # Verify token
+        token_data = verify_token(token)
+        
+        # Call the insert_account function from service_functions
+        insert_account(db, user_id, user_name, password, email, first_name, last_name, tel, user_department, user_status)
+        return {"message": "Account inserted successfully."}
+    except HTTPException as e:
+        raise e  # re-raise the HTTPException from the service function
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+
+@app.delete("/delete_user/{user_id}")
+async def delete_user_service(user_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    try:
+        # Verify token
+        token_data = verify_token(token)
+        
+        delete_user_by_id(db, user_id)
+        return {"message": f"User with user_id={user_id} deleted successfully."}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+@app.get("/user_details_for_edit/{user_id}")
+async def user_details_for_edit_service(user_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    try:
+        # Verify token
+        token_data = verify_token(token)
+        
+        user_details = user_details_for_edit(db, user_id)
+        return user_details
+    except HTTPException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred while processing the request: {str(e)}")
+
+
+
+@app.put("/user_edit_save/{user_id}")
+async def user_edit_save_service(user_id: int, user_name: str, password: str, email: str,
+                                   first_name: str, last_name: str, tel: str,
+                                   user_department: str, user_status: bool, db: Session = Depends(get_db), 
+                                   token: str = Depends(oauth2_scheme)):
+    try:
+        # Verify token
+        token_data = verify_token(token)
+        
+        # Call the user_edit_save function from service_functions
+        return user_edit_save(db, user_id, user_name, password, email, first_name, last_name, tel, user_department, user_status)
+    except HTTPException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred while processing the request: {str(e)}")
