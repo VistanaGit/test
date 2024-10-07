@@ -1,4 +1,5 @@
 import os
+import cv2
 import secrets
 import logging
 import pandas as pd
@@ -12,7 +13,7 @@ from db_configure import SessionLocal
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from sqlalchemy import func, desc
-from typing import Optional
+from typing import Optional, Generator
 import psutil  # For CPU, memory, and disk usage
 import platform  # For hardware specs
 import GPUtil  # For GPU usage and specs (needs 'gputil' library)
@@ -96,9 +97,6 @@ def login(login_data: LoginData, db: Session):
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={"sub": account.user_name}, expires_delta=access_token_expires)
     return {"access_token": access_token, "token_type": "bearer"} 
-
-
-
 
 
 # Function to get account list
@@ -642,3 +640,59 @@ def report_details_of_selected_counter(db: Session, counter_id: int):
         # Log or handle unexpected errors
         raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data: {str(e)}")
 
+
+
+################################# CAMERA VIDEO PLAY ########################################
+################################# CAMERA VIDEO PLAY ########################################
+################################# CAMERA VIDEO PLAY ########################################
+
+
+VIDEOS_DIRECTORY = "Videos"
+
+def get_most_recent_video(cam_id: int) -> str:
+    folder_path = os.path.join(VIDEOS_DIRECTORY, str(cam_id))
+    
+    if not os.path.exists(folder_path):
+        raise HTTPException(status_code=404, detail=f"Folder for camera {cam_id} not found.")
+    
+    # Retrieve all video files in the folder
+    video_files = [f for f in os.listdir(folder_path) if f.endswith(('.mp4', '.avi'))]
+    
+    if not video_files:
+        raise HTTPException(status_code=404, detail=f"No video files found for camera {cam_id}.")
+    
+    # Parse file names to sort by timestamp
+    def extract_timestamp(file_name: str) -> datetime:
+        # Format: <cam_id>_YYYY-MM-DD_HH-MM-SS.mp4
+        try:
+            timestamp_str = file_name.split('_')[1] + "_" + file_name.split('_')[2].split('.')[0]
+            return datetime.strptime(timestamp_str, "%Y-%m-%d_%H-%M-%S")
+        except Exception:
+            raise HTTPException(status_code=400, detail=f"Invalid video file format for {file_name}.")
+    
+    # Sort by date/time descending to get the most recent video
+    video_files.sort(key=extract_timestamp, reverse=True)
+    most_recent_video = video_files[0]
+    most_recent_video_path = os.path.join(folder_path, most_recent_video)
+    
+    return most_recent_video_path
+
+# Stream video frames
+def stream_video_frames(video_path: str) -> Generator:
+    cap = cv2.VideoCapture(video_path)
+    
+    if not cap.isOpened():
+        raise HTTPException(status_code=500, detail="Unable to open video file.")
+    
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        # Encode frame as a JPEG
+        _, buffer = cv2.imencode('.jpg', frame)
+        frame_bytes = buffer.tobytes()
+        
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+    
+    cap.release()
