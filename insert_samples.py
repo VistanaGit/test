@@ -7,11 +7,11 @@ def insert_accounts():
     session = SessionLocal()
     try:
         accounts = [
-            Account(user_id=1001, user_name='ahmad_hosseini', password='password123', email='ahmad@example.com', first_name='Ahmad', last_name='Hosseini', tel='09123456789', user_photo='ahmad_hosseini.jpg', user_status='active'),
-            Account(user_id=1002, user_name='reza_shokouhi', password='password456', email='reza@example.com', first_name='Reza', last_name='Shokouhi', tel='09234567890', user_photo='reza_shokouhi.jpg', user_status='active'),
-            Account(user_id=1003, user_name='fatemeh_ghasemi', password='password789', email='fatemeh@example.com', first_name='Fatemeh', last_name='Ghasemi', tel='09345678901', user_photo='fatemeh_ghasemi.jpg', user_status='active'),
-            Account(user_id=1004, user_name='mehdi_rahimi', password='password012', email='mehdi@example.com', first_name='Mehdi', last_name='Rahimi', tel='09456789012', user_photo='mehdi_rahimi.jpg', user_status='inactive'),
-            Account(user_id=1005, user_name='leila_mohammadi', password='password345', email='leila@example.com', first_name='Leila', last_name='Mohammadi', tel='09567890123', user_photo='leila_mohammadi.jpg', user_status='active')
+            Account(user_id=1001, user_name='ahmad_hosseini', password='password123', email='ahmad@example.com', first_name='Ahmad', last_name='Hosseini', tel='09123456789', user_department='Department A', user_status=True),
+            Account(user_id=1002, user_name='reza_shokouhi', password='password456', email='reza@example.com', first_name='Reza', last_name='Shokouhi', tel='09234567890', user_department='Department B', user_status=True),
+            Account(user_id=1003, user_name='fatemeh_ghasemi', password='password789', email='fatemeh@example.com', first_name='Fatemeh', last_name='Ghasemi', tel='09345678901', user_department='Department C', user_status=True),
+            Account(user_id=1004, user_name='mehdi_rahimi', password='password012', email='mehdi@example.com', first_name='Mehdi', last_name='Rahimi', tel='09456789012', user_department='Department D', user_status=False),  # Set to False for inactive
+            Account(user_id=1005, user_name='leila_mohammadi', password='password345', email='leila@example.com', first_name='Leila', last_name='Mohammadi', tel='09567890123', user_department='Department E', user_status=True)
         ]
         session.add_all(accounts)
         session.commit()
@@ -41,6 +41,7 @@ def insert_cameras():
         print(f"An error occurred: {e}")
     finally:
         session.close()
+
 
 
 # Insert counters data
