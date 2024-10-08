@@ -736,17 +736,23 @@ def insert_camera(db: Session, cam_name: str, cam_ip: str, cam_mac: str, cam_ena
 
 def delete_camera_by_id(db: Session, cam_id: int):
     try:
-        # Use delete query within the db session
+        # Check if the camera exists
+        camera = db.query(Camera).filter(Camera.cam_id == cam_id).first()
+        
+        if not camera:
+            raise HTTPException(status_code=404, detail=f"Camera with cam_id={cam_id} not found.")
+
+        # If it exists, proceed to delete
         db.execute(delete(Camera).where(Camera.cam_id == cam_id))
         db.commit()
         print(f"Camera with cam_id={cam_id} deleted successfully.")
+    
     except Exception as e:
-        db.rollback()
+        db.rollback()  # Rollback in case of any error
         print(f"An error occurred: {e}")
         raise
     finally:
         db.close()
-        
     
 
 def camera_details_for_edit(db: Session, cam_id: int):
@@ -772,16 +778,25 @@ def camera_details_for_edit(db: Session, cam_id: int):
         return None
 
 def camera_edit_save(
-    db: Session, cam_name: str, cam_ip: str, cam_mac: str, cam_enable: bool, cam_rtsp: str,
-    age_detect_status: bool, gender_detect_status: bool, person_counting_status: bool, 
-    time_duration_calculation_status: bool, cam_desc: Optional[str]
+    db: Session, 
+    cam_id: int,  # Add cam_id parameter
+    cam_name: str, 
+    cam_ip: str, 
+    cam_mac: str, 
+    cam_enable: bool, 
+    cam_rtsp: str,
+    age_detect_status: bool, 
+    gender_detect_status: bool, 
+    person_counting_status: bool, 
+    time_duration_calculation_status: bool, 
+    cam_desc: Optional[str]
 ):
     try:
-        # Fetch the existing camera record to update
-        camera = db.query(Camera).filter(Camera.cam_ip == cam_ip, Camera.cam_mac == cam_mac).first()
+        # Fetch the existing camera record to update by cam_id
+        camera = db.query(Camera).filter(Camera.cam_id == cam_id).first()
 
         if not camera:
-            raise ValueError(f"Camera with provided IP and MAC address not found.")
+            raise ValueError(f"Camera with cam_id={cam_id} not found.")
 
         # Update the camera details
         camera.cam_name = cam_name
@@ -815,12 +830,14 @@ def camera_edit_save(
 
 
 
+
 ################################# ACCOUNT  ########################################
 ################################# ACCOUNT  ########################################
 ################################# ACCOUNT  ########################################
 
 def insert_account(
     db: Session, 
+    user_id: int,  # Add user_id parameter
     user_name: str, 
     password: str, 
     email: str, 
@@ -831,13 +848,14 @@ def insert_account(
     user_status: bool
 ):
     # Check if email or username already exists
-    existing_account = db.query(Account).filter((Account.email == email) | (Account.user_name == user_name)).first()
+    existing_account = db.query(Account).filter((Account.user_id == user_id) | (Account.user_name == user_name)).first()
     
     if existing_account:
-        raise HTTPException(status_code=400, detail="Username or email already exists.")
+        raise HTTPException(status_code=400, detail="This User ID or Username already exists.")
     
     try:
         new_account = Account(
+            user_id=user_id,  # Include user_id when creating the account
             user_name=user_name,
             password=password,
             email=email,
@@ -861,13 +879,21 @@ def insert_account(
 
 
 def delete_user_by_id(db: Session, user_id: int):
-    user = db.query(Account).filter(Account.user_id == user_id).first()  # Fetch user by user_id
-    if not user:
-        raise HTTPException(status_code=404, detail=f"User with user_id={user_id} not found.")
-    
-    db.delete(user)  # Delete the user
-    db.commit()  # Commit the changes
+    try:
+        # Fetch user by user_id
+        user = db.query(Account).filter(Account.user_id == user_id).first()
 
+        if not user:
+            raise HTTPException(status_code=404, detail=f"User with user_id={user_id} not found.")
+
+        db.delete(user)  # Delete the user
+        db.commit()  # Commit the changes
+        print(f"User with user_id={user_id} deleted successfully.")
+    
+    except Exception as e:
+        db.rollback()  # Rollback in case of any error
+        print(f"An error occurred while deleting user: {e}")
+        raise
 
 
 def user_details_for_edit(db: Session, user_id: int):
@@ -894,6 +920,7 @@ def user_details_for_edit(db: Session, user_id: int):
 
 def user_edit_save(
     db: Session, 
+    user_id: int,  # Use user_id to fetch the record
     user_name: str, 
     password: str, 
     email: str, 
@@ -904,14 +931,16 @@ def user_edit_save(
     user_status: bool
 ):
     try:
-        # Fetch the user record by email or username
-        user = db.query(Account).filter((Account.user_name == user_name) | (Account.email == email)).first()
+        # Fetch the user record by user_id
+        user = db.query(Account).filter(Account.user_id == user_id).first()
 
         if not user:
-            raise HTTPException(status_code=404, detail=f"User not found with username={user_name} or email={email}.")
+            raise HTTPException(status_code=404, detail=f"User not found with user_id={user_id}.")
 
         # Update user details
+        user.user_name = user_name
         user.password = password
+        user.email = email
         user.first_name = first_name
         user.last_name = last_name
         user.tel = tel
@@ -919,9 +948,7 @@ def user_edit_save(
         user.user_status = user_status
 
         db.commit()  # Save the changes to the database
-        return {"message": f"User with username={user_name} updated successfully."}
+        return {"message": f"User with user_id={user_id} updated successfully."}
     except Exception as e:
         db.rollback()  # Rollback in case of any error
         raise HTTPException(status_code=500, detail=f"An error occurred while updating user: {str(e)}")
-
-
