@@ -14,7 +14,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
-from service_functions import (
+from service_functions_3 import (
     recover_password,
     login,
     get_account_list,
@@ -528,29 +528,42 @@ async def insert_camera_service(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+class CameraDeleteRequest(BaseModel):
+    cam_id: int  # Field to hold the camera ID
 
-@app.delete("/delete_camera/{cam_id}")
-async def delete_camera_service(cam_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+
+@app.delete("/delete_camera")
+async def delete_camera_service(
+    camera_data: CameraDeleteRequest,  # Accept the camera ID in the request body
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
     try:
         # Verify token
         token_data = verify_token(token)
 
         # Call the delete function and pass the session (db)
-        delete_camera_by_id(db, cam_id)
-        return {"message": f"Camera with cam_id={cam_id} deleted successfully."}
+        delete_camera_by_id(db, camera_data.cam_id)  # Pass cam_id from the request body
+        return {"message": f"Camera with cam_id={camera_data.cam_id} deleted successfully."}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
+class CameraDetailsRequest(BaseModel):
+    cam_id: int  # The camera ID to fetch details
 
-@app.get("/camera_details_for_edit/{cam_id}")
-async def camera_details_for_edit_service(cam_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+@app.post("/camera_details_for_edit")
+async def camera_details_for_edit_service(
+    camera_data: CameraDetailsRequest,  # Use the new Pydantic model for the request body
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
     try:
         # Verify token
         token_data = verify_token(token)
-        
+
         # Call the camera_details_for_edit function from service_functions
-        camera_details = camera_details_for_edit(db, cam_id)
+        camera_details = camera_details_for_edit(db, camera_data.cam_id)  # Use cam_id from request body
         
         if camera_details is not None:
             return {"camera_details": camera_details}
@@ -561,8 +574,10 @@ async def camera_details_for_edit_service(cam_id: int, db: Session = Depends(get
 
 
 
+
 # Pydantic model for camera edit data
 class CameraEditData(BaseModel):
+    cam_id: int  # Include cam_id in the request body
     cam_name: str
     cam_ip: str
     cam_mac: str
@@ -585,9 +600,9 @@ async def camera_edit_save_service(
         token_data = verify_token(token)
 
         # Call the camera_edit_save function from service_functions
-        # Automatically retrieve or update the existing camera by cam_id
         camera_edit_save(
             db=db,
+            cam_id=camera_data.cam_id,  # Pass cam_id from the request
             cam_name=camera_data.cam_name,
             cam_ip=camera_data.cam_ip,
             cam_mac=camera_data.cam_mac,
@@ -605,12 +620,11 @@ async def camera_edit_save_service(
 
 
 
-
-
 ################################ ACCOUNT ######################################
 
 # Create a Pydantic model for the account data
 class AccountCreate(BaseModel):
+    user_id: int  # Add user_id to the Pydantic model
     user_name: str
     password: str
     email: str
@@ -627,12 +641,14 @@ async def insert_account_service(
     token: str = Depends(oauth2_scheme)
 ):
     try:
+
         # Verify token
         token_data = verify_token(token)
 
         # Call the insert_account function from service_functions
         insert_account(
             db=db,
+            user_id=account_data.user_id,  # Pass user_id from the request body
             user_name=account_data.user_name,
             password=account_data.password,
             email=account_data.email,
@@ -644,34 +660,51 @@ async def insert_account_service(
         )
         return {"message": "Account inserted successfully."}
     except HTTPException as e:
-        raise e  # re-raise the HTTPException from the service function
+        raise e  # Re-raise the HTTPException from the service function
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 
-@app.delete("/delete_user/{user_id}")
-async def delete_user_service(user_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+class UserDeleteRequest(BaseModel):
+    user_id: int  # The user ID to delete
+
+
+@app.delete("/delete_user")
+async def delete_user_service(
+    user_data: UserDeleteRequest,  # Use the new Pydantic model for the request body
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
     try:
         # Verify token
         token_data = verify_token(token)
-        
-        delete_user_by_id(db, user_id)
-        return {"message": f"User with user_id={user_id} deleted successfully."}
+
+        # Call the delete function with the user ID from the request body
+        delete_user_by_id(db, user_data.user_id)
+        return {"message": f"User with user_id={user_data.user_id} deleted successfully."}
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class UserDetailsRequest(BaseModel):
+    user_id: int  # The user ID to fetch details
 
-@app.get("/user_details_for_edit/{user_id}")
-async def user_details_for_edit_service(user_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+@app.post("/user_details_for_edit")
+async def user_details_for_edit_service(
+    user_data: UserDetailsRequest,  # Use the new Pydantic model for the request body
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
     try:
         # Verify token
         token_data = verify_token(token)
         
-        user_details = user_details_for_edit(db, user_id)
+        # Call the user_details_for_edit function from service_functions
+        user_details = user_details_for_edit(db, user_data.user_id)  # Use user_id from request body
+        
         return user_details
     except HTTPException as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
@@ -680,8 +713,10 @@ async def user_details_for_edit_service(user_id: int, db: Session = Depends(get_
 
 
 
+
 # Pydantic model for user data when editing
 class UserEdit(BaseModel):
+    user_id: int  # Add user_id to the body request
     user_name: str
     password: str
     email: str
@@ -693,7 +728,7 @@ class UserEdit(BaseModel):
 
 @app.put("/user_edit_save")
 async def user_edit_save_service(
-    user_data: UserEdit,  # Use Pydantic model to receive data
+    user_data: UserEdit,  # Receive user data with user_id
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
 ):
@@ -701,9 +736,10 @@ async def user_edit_save_service(
         # Verify token
         token_data = verify_token(token)
 
-        # Call the user_edit_save function from service_functions
+        # Call the user_edit_save function from service_functions and pass user_id
         return user_edit_save(
             db=db,
+            user_id=user_data.user_id,  # Pass user_id from the request
             user_name=user_data.user_name,
             password=user_data.password,
             email=user_data.email,
@@ -717,4 +753,3 @@ async def user_edit_save_service(
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred while processing the request: {str(e)}")
-
