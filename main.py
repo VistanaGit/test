@@ -14,7 +14,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
-from service_functions import (
+from service_functions_3 import (
     recover_password,
     login,
     get_account_list,
@@ -575,26 +575,38 @@ async def camera_edit_save_service(
 
 ################################ ACCOUNT ######################################
 
+# Create a Pydantic model for the account data
+class AccountCreate(BaseModel):
+    user_name: str
+    password: str
+    email: str
+    first_name: str
+    last_name: str
+    tel: str
+    user_department: str
+    user_status: bool
+
 @app.post("/insert_account")
 async def insert_account_service(
-    user_id: int,
-    user_name: str,
-    password: str,
-    email: str,
-    first_name: str,
-    last_name: str,
-    tel: str,
-    user_department: str,
-    user_status: bool,
-    db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    account_data: AccountCreate,  # Accept JSON body data
+    db: Session = Depends(get_db)
 ):
     try:
         # Verify token
-        token_data = verify_token(token)
-        
+        #token_data = verify_token(token)
+
         # Call the insert_account function from service_functions
-        insert_account(db, user_id, user_name, password, email, first_name, last_name, tel, user_department, user_status)
+        insert_account(
+            db=db,
+            user_name=account_data.user_name,
+            password=account_data.password,
+            email=account_data.email,
+            first_name=account_data.first_name,
+            last_name=account_data.last_name,
+            tel=account_data.tel,
+            user_department=account_data.user_department,
+            user_status=account_data.user_status
+        )
         return {"message": "Account inserted successfully."}
     except HTTPException as e:
         raise e  # re-raise the HTTPException from the service function
