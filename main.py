@@ -488,18 +488,22 @@ async def camera_video_view(cam_id: int, db: Session = Depends(get_db), token: s
     # Stream the video frames
     return StreamingResponse(stream_video_frames(video_path), media_type="multipart/x-mixed-replace; boundary=frame")
 
+# Pydantic model for camera data
+class CameraData(BaseModel):
+    cam_name: str
+    cam_ip: str
+    cam_mac: str
+    cam_enable: bool  # Boolean value from the toggle switch
+    cam_rtsp: str
+    cam_desc: Optional[str] = None  # Optional camera description
+
+
 @app.post("/insert_camera")
 async def insert_camera_service(
-    cam_name: str,
-    cam_ip: str,
-    cam_mac: str,
-    cam_enable: bool,  # Boolean value from the toggle switch
-    cam_rtsp: str,
-    cam_desc: Optional[str] = None,
+    camera_data: CameraData,  # Use Pydantic model to receive the data
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
 ):
-
     try:
         # Verify token
         token_data = verify_token(token)
@@ -508,12 +512,21 @@ async def insert_camera_service(
         next_cam_id = get_next_cam_id(db)
 
         # Call the insert_camera function to insert the new record
-        insert_camera(db, cam_name, cam_ip, cam_mac, cam_enable, cam_rtsp, cam_desc)
+        insert_camera(
+            db=db,
+            cam_name=camera_data.cam_name,
+            cam_ip=camera_data.cam_ip,
+            cam_mac=camera_data.cam_mac,
+            cam_enable=camera_data.cam_enable,
+            cam_rtsp=camera_data.cam_rtsp,
+            cam_desc=camera_data.cam_desc
+        )
 
         # Return the next_cam_id as part of the response
         return {"message": f"Camera inserted successfully with cam_id= {next_cam_id}", "cam_id": next_cam_id}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 
 @app.delete("/delete_camera/{cam_id}")
@@ -548,29 +561,50 @@ async def camera_details_for_edit_service(cam_id: int, db: Session = Depends(get
 
 
 
-@app.put("/camera_edit_save/{cam_id}")
+# Pydantic model for camera edit data
+class CameraEditData(BaseModel):
+    cam_name: str
+    cam_ip: str
+    cam_mac: str
+    cam_enable: bool
+    cam_rtsp: str
+    age_detect_status: bool
+    gender_detect_status: bool
+    person_counting_status: bool
+    time_duration_calculation_status: bool
+    cam_desc: Optional[str] = None  # Optional description
+
+@app.put("/camera_edit_save")
 async def camera_edit_save_service(
-    cam_id: int,
-    cam_ip: str,
-    cam_mac: str,
-    cam_enable: bool,
-    cam_rtsp: str,
-    age_detect_status: bool,
-    gender_detect_status: bool,
-    person_counting_status: bool,
-    time_duration_calculation_status: bool,
+    camera_data: CameraEditData,
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
 ):
     try:
         # Verify token
         token_data = verify_token(token)
-        
+
         # Call the camera_edit_save function from service_functions
-        camera_edit_save(db, cam_id, cam_ip, cam_mac, cam_enable, cam_rtsp, age_detect_status, gender_detect_status, person_counting_status, time_duration_calculation_status)
-        return {"message": f"Camera with cam_id= {cam_id} updated successfully."}
+        # Automatically retrieve or update the existing camera by cam_id
+        camera_edit_save(
+            db=db,
+            cam_name=camera_data.cam_name,
+            cam_ip=camera_data.cam_ip,
+            cam_mac=camera_data.cam_mac,
+            cam_enable=camera_data.cam_enable,
+            cam_rtsp=camera_data.cam_rtsp,
+            age_detect_status=camera_data.age_detect_status,
+            gender_detect_status=camera_data.gender_detect_status,
+            person_counting_status=camera_data.person_counting_status,
+            time_duration_calculation_status=camera_data.time_duration_calculation_status,
+            cam_desc=camera_data.cam_desc  # Pass optional description
+        )
+        return {"message": "Camera updated successfully."}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+
 
 
 ################################ ACCOUNT ######################################
@@ -646,18 +680,41 @@ async def user_details_for_edit_service(user_id: int, db: Session = Depends(get_
 
 
 
-@app.put("/user_edit_save/{user_id}")
-async def user_edit_save_service(user_id: int, user_name: str, password: str, email: str,
-                                   first_name: str, last_name: str, tel: str,
-                                   user_department: str, user_status: bool, db: Session = Depends(get_db), 
-                                   token: str = Depends(oauth2_scheme)):
+# Pydantic model for user data when editing
+class UserEdit(BaseModel):
+    user_name: str
+    password: str
+    email: str
+    first_name: str
+    last_name: str
+    tel: str
+    user_department: str
+    user_status: bool
+
+@app.put("/user_edit_save")
+async def user_edit_save_service(
+    user_data: UserEdit,  # Use Pydantic model to receive data
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
     try:
         # Verify token
         token_data = verify_token(token)
-        
+
         # Call the user_edit_save function from service_functions
-        return user_edit_save(db, user_id, user_name, password, email, first_name, last_name, tel, user_department, user_status)
+        return user_edit_save(
+            db=db,
+            user_name=user_data.user_name,
+            password=user_data.password,
+            email=user_data.email,
+            first_name=user_data.first_name,
+            last_name=user_data.last_name,
+            tel=user_data.tel,
+            user_department=user_data.user_department,
+            user_status=user_data.user_status
+        )
     except HTTPException as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred while processing the request: {str(e)}")
+
