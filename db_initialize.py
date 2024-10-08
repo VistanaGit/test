@@ -1,6 +1,8 @@
 import logging
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Float, inspect
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.declarative import declarative_base
+from enum import Enum  # Import Enum from the enum module
 from db_configure import engine, Base  # Import engine and Base from db_configure
 
 # Configure logging
@@ -8,7 +10,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Define UserStatusEnum
-class UserStatusEnum(PyEnum):
+class UserStatusEnum(Enum):  # Change PyEnum to Enum
     active = 'active'
     inactive = 'inactive'
 
