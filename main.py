@@ -589,11 +589,12 @@ class AccountCreate(BaseModel):
 @app.post("/insert_account")
 async def insert_account_service(
     account_data: AccountCreate,  # Accept JSON body data
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
 ):
     try:
         # Verify token
-        #token_data = verify_token(token)
+        token_data = verify_token(token)
 
         # Call the insert_account function from service_functions
         insert_account(
