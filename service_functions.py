@@ -810,18 +810,25 @@ def camera_edit_save(db: Session, cam_id: int, cam_ip: str, cam_mac: str, cam_en
 ################################# ACCOUNT  ########################################
 ################################# ACCOUNT  ########################################
 
-def insert_account(db: Session, user_id: int, user_name: str, password: str, email: str, 
-                   first_name: str, last_name: str, tel: str, user_department: str, 
-                   user_status: bool):
-    # Check if user_id already exists
-    existing_account = db.query(Account).filter(Account.user_id == user_id).first()
+def insert_account(
+    db: Session, 
+    user_name: str, 
+    password: str, 
+    email: str, 
+    first_name: str, 
+    last_name: str, 
+    tel: str, 
+    user_department: str, 
+    user_status: bool
+):
+    # Check if email or username already exists
+    existing_account = db.query(Account).filter((Account.email == email) | (Account.user_name == user_name)).first()
     
     if existing_account:
-        raise HTTPException(status_code=400, detail="User ID already exists.")
+        raise HTTPException(status_code=400, detail="Username or email already exists.")
     
     try:
         new_account = Account(
-            user_id=user_id,
             user_name=user_name,
             password=password,
             email=email,
@@ -834,7 +841,7 @@ def insert_account(db: Session, user_id: int, user_name: str, password: str, ema
         
         db.add(new_account)
         db.commit()
-        print(f"New account inserted with user_id={user_id}")
+        print(f"New account inserted with user_name={user_name}")
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="Error inserting account, possibly duplicate username or email.")
@@ -900,3 +907,4 @@ def user_edit_save(db: Session, user_id: int, user_name: str, password: str, ema
     except Exception as e:
         db.rollback()  # Rollback in case of any error
         raise HTTPException(status_code=500, detail=f"An error occurred while updating user: {str(e)}")
+
