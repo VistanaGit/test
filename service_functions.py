@@ -100,15 +100,6 @@ def login(login_data: LoginData, db: Session):
     return {"access_token": access_token, "token_type": "bearer"} 
 
 
-# Function to get account list
-def get_account_list(db: Session):
-    accounts = db.query(Account).all()
-    return accounts
-
-# Function to get camera list
-def get_camera_list(db: Session):
-    cameras = db.query(Camera).all()  # a Camera model
-    return cameras
 
 # Function to get counter list
 def get_counter_list(db: Session):
@@ -351,7 +342,7 @@ def get_latest_disabled_camera(db: Session):
     # Check if a disabled camera was found
     if latest_disabled_camera:
         return {
-            "message": f"The camera {latest_disabled_camera.cam_id} is out of reach.",
+            "message": f"The camera {latest_disabled_camera.id} is out of reach.",
             "cam_last_date_modified": latest_disabled_camera.cam_last_date_modified
         }
     else:
@@ -375,7 +366,16 @@ def get_visitors_by_date_range(db: Session, start_date: str, end_date: str):
     
     return visitors
 
-def get_visitor_records(db: Session, start_date: str, end_date: str, counter_id: int = None, cam_id: int = None, age: str = None, gender: str = None):
+def get_visitor_records(
+    db: Session, 
+    start_date: str, 
+    end_date: str, 
+    counter_id: int = None, 
+    id: int = None, 
+    person_id: int = None,  # Add person_id parameter
+    age: str = None, 
+    gender: str = None
+):
     try:
         # Convert string dates to datetime objects
         start_date = datetime.strptime(start_date, '%Y-%m-%d')
@@ -390,8 +390,11 @@ def get_visitor_records(db: Session, start_date: str, end_date: str, counter_id:
     if counter_id is not None:
         query = query.filter(Visitor.counter_id == counter_id)
     
-    if cam_id is not None:
-        query = query.filter(Visitor.cam_id == cam_id)
+    if id is not None:
+        query = query.filter(Visitor.id == id)
+
+    if person_id is not None:  # Add filter for person_id
+        query = query.filter(Visitor.person_id == person_id)
 
     if age is not None:
         query = query.filter(Visitor.person_age_group == age)
@@ -402,25 +405,26 @@ def get_visitor_records(db: Session, start_date: str, end_date: str, counter_id:
     # Fetch records
     records = query.all()
     
-    if not records:
-        raise HTTPException(status_code=404, detail="No records found for the specified criteria.")
-
-    # Prepare data for CSV/Excel export
+    # Instead of raising an exception, return an empty list if no records found
     data = []
-    for idx, record in enumerate(records, start=1):
-        data.append({
-            "No": idx,
-            "Counter ID": record.counter_id,
-            "Camera ID": record.cam_id,
-            "Person ID": record.person_id,
-            "Attendance Duration": record.person_duration_in_roi,
-            "Gender": record.person_gender,
-            "Age": record.person_age_group,
-            "ROI": record.roi_id,
-            "Date-Time": record.current_datetime
-        })
+    if records:
+        # Prepare data for CSV/Excel export
+        for idx, record in enumerate(records, start=1):
+            data.append({
+                "no": idx,  # Changed to snake_case
+                "counter_id": record.counter_id,  # Changed to snake_case
+                "camera_id": record.cam_id,  # Changed to snake_case
+                "person_id": record.person_id,  # Changed to snake_case
+                "attendance_duration": record.person_duration_in_roi,  # Changed to snake_case
+                "gender": record.person_gender,  # Changed to snake_case
+                "age": record.person_age_group,  # Changed to snake_case
+                "roi": record.roi_id,  # Changed to snake_case
+                "date_time": record.current_datetime  # Changed to snake_case
+            })
 
-    return data
+    return data  # Return the data, which could be an empty list
+
+
 def export_visitor_records_to_csv(data):
     df = pd.DataFrame(data)
     buffer = BytesIO()
@@ -561,6 +565,10 @@ def serialize_result(result):
         return tuple(serialize_result(i) for i in result)
     return result
 
+from sqlalchemy.orm import Session
+from fastapi import HTTPException
+from sqlalchemy import func
+
 # This function retrieves various metrics based on the selected counter_id
 def report_details_of_selected_counter(db: Session, counter_id: int):
     try:
@@ -573,27 +581,23 @@ def report_details_of_selected_counter(db: Session, counter_id: int):
 
         # Fetch the most visited date and time
         most_visited_record = db.query(
-            Visitor.current_datetime,
-            func.count(Visitor.person_id).label("visit_count")
+            Visitor.current_datetime
         ).filter(Visitor.counter_id == counter_id, Visitor.person_id.isnot(None)) \
          .group_by(Visitor.current_datetime) \
          .order_by(func.count(Visitor.person_id).desc()).first()
 
-        # Handle case where no visits are found
-        if not most_visited_record:
-            most_visited_record = (None, 0)
+        # Serialize the record if it exists
+        most_visited_record = most_visited_record[0] if most_visited_record else None
 
         # Fetch the least visited date and time
         least_visited_record = db.query(
-            Visitor.current_datetime,
-            func.count(Visitor.person_id).label("visit_count")
+            Visitor.current_datetime
         ).filter(Visitor.counter_id == counter_id, Visitor.person_id.isnot(None)) \
          .group_by(Visitor.current_datetime) \
          .order_by(func.count(Visitor.person_id).asc()).first()
 
-        # Handle case where no visits are found
-        if not least_visited_record:
-            least_visited_record = (None, 0)
+        # Serialize the record if it exists
+        least_visited_record = least_visited_record[0] if least_visited_record else None
 
         # Calculate total duration of visits in minutes
         total_duration_seconds = db.query(func.sum(Visitor.person_duration_in_roi)).filter(
@@ -601,70 +605,80 @@ def report_details_of_selected_counter(db: Session, counter_id: int):
         ).scalar() or 0
         total_duration_minutes = total_duration_seconds / 60
 
-        # Determine the most visited gender
-        most_visited_gender = db.query(
-            Visitor.person_gender,
-            func.count(Visitor.person_gender).label("gender_count")
-        ).filter(Visitor.counter_id == counter_id, Visitor.person_gender.isnot(None)) \
-         .group_by(Visitor.person_gender) \
-         .order_by(func.count(Visitor.person_gender).desc()).first()
-
-        # Handle case where no gender data is found
-        if not most_visited_gender:
-            most_visited_gender = (None, 0)
-
         # Determine the most visited age group
         most_visited_age_group = db.query(
-            Visitor.person_age_group,
-            func.count(Visitor.person_age_group).label("age_count")
+            Visitor.person_age_group
         ).filter(Visitor.counter_id == counter_id, Visitor.person_age_group.isnot(None)) \
          .group_by(Visitor.person_age_group) \
          .order_by(func.count(Visitor.person_age_group).desc()).first()
 
         # Handle case where no age group data is found
-        if not most_visited_age_group:
-            most_visited_age_group = (None, 0)
+        most_visited_age_group = most_visited_age_group[0] if most_visited_age_group else None
 
         return {
             "total_visits": total_visits,
-            "most_visited_datetime": serialize_result(most_visited_record),
-            "least_visited_datetime": serialize_result(least_visited_record),
+            "most_visited_datetime": most_visited_record,
+            "least_visited_datetime": least_visited_record,
             "total_duration_minutes": total_duration_minutes,
-            "most_visited_gender": serialize_result(most_visited_gender),
-            "most_visited_age_group": serialize_result(most_visited_age_group),
+            "most_visited_age_group": most_visited_age_group,  # Removed age_count
         }
 
     except HTTPException as http_exc:
-        # Handle HTTPExceptions separately to provide more specific messages
         raise http_exc
     except Exception as e:
-        # Log or handle unexpected errors
         raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data: {str(e)}")
 
 
+################################# CAMERA  ########################################
+################################# CAMERA  ########################################
+################################# CAMERA  ########################################
 
-################################# CAMERA  ########################################
-################################# CAMERA  ########################################
-################################# CAMERA  ########################################
+
+def get_all_cameras(db: Session):
+    try:
+        # Query all cameras from the Camera table
+        cameras = db.query(Camera).all()
+        
+        # Return a list of dictionaries representing each camera's details
+        return [
+            {
+                "id": camera.id,
+                "cam_name": camera.cam_name,
+                "cam_ip": camera.cam_ip,
+                "cam_mac": camera.cam_mac,
+                "cam_enable": camera.cam_enable,
+                "cam_rtsp": camera.cam_rtsp,
+                "age_detect_status": camera.age_detect_status,
+                "gender_detect_status": camera.gender_detect_status,
+                "person_counting_status": camera.person_counting_status,
+                "time_duration_calculation_status": camera.time_duration_calculation_status,
+                "cam_last_date_modified": camera.cam_last_date_modified,
+                "cam_desc": camera.cam_desc
+            }
+            for camera in cameras
+        ]
+    except Exception as e:
+        # Log and raise an exception if fetching the cameras fails
+        raise HTTPException(status_code=500, detail=f"An error occurred while fetching cameras: {str(e)}")
 
 
 VIDEOS_DIRECTORY = "Videos"
 
-def get_most_recent_video(cam_id: int) -> str:
-    folder_path = os.path.join(VIDEOS_DIRECTORY, str(cam_id))
+def get_most_recent_video(id: int) -> str:
+    folder_path = os.path.join(VIDEOS_DIRECTORY, str(id))
     
     if not os.path.exists(folder_path):
-        raise HTTPException(status_code=404, detail=f"Folder for camera {cam_id} not found.")
+        raise HTTPException(status_code=404, detail=f"Folder for camera {id} not found.")
     
     # Retrieve all video files in the folder
     video_files = [f for f in os.listdir(folder_path) if f.endswith(('.mp4', '.avi'))]
     
     if not video_files:
-        raise HTTPException(status_code=404, detail=f"No video files found for camera {cam_id}.")
+        raise HTTPException(status_code=404, detail=f"No video files found for camera {id}.")
     
     # Parse file names to sort by timestamp
     def extract_timestamp(file_name: str) -> datetime:
-        # Format: <cam_id>_YYYY-MM-DD_HH-MM-SS.mp4
+        # Format: <id>_YYYY-MM-DD_HH-MM-SS.mp4
         try:
             timestamp_str = file_name.split('_')[1] + "_" + file_name.split('_')[2].split('.')[0]
             return datetime.strptime(timestamp_str, "%Y-%m-%d_%H-%M-%S")
@@ -699,20 +713,19 @@ def stream_video_frames(video_path: str) -> Generator:
     cap.release()
 
 
-def get_next_cam_id(db: Session):
-    # Get the highest existing cam_id and increment it
-    last_camera = db.query(Camera).order_by(Camera.cam_id.desc()).first()
-    return (last_camera.cam_id + 1) if last_camera else 1
-
-
 def insert_camera(db: Session, cam_name: str, cam_ip: str, cam_mac: str, cam_enable: bool, cam_rtsp: str, cam_desc: Optional[str]):
-    try:
-        # Get the next cam_id
-        next_cam_id = get_next_cam_id(db)
+    # Check if the IP address or MAC address already exists in the table
+    existing_camera = db.query(Camera).filter(
+        (Camera.cam_ip == cam_ip) | 
+        (Camera.cam_mac == cam_mac)
+    ).first()
+    
+    if existing_camera:
+        raise HTTPException(status_code=400, detail="Camera with this IP or MAC address already exists.")
 
+    try:
         # Create a new Camera instance
         new_camera = Camera(
-            cam_id=next_cam_id,
             cam_name=cam_name,
             cam_ip=cam_ip,
             cam_mac=cam_mac,
@@ -725,40 +738,48 @@ def insert_camera(db: Session, cam_name: str, cam_ip: str, cam_mac: str, cam_ena
         # Add and commit the new camera
         db.add(new_camera)
         db.commit()
-        print(f"New camera inserted with cam_id={next_cam_id}")
+        db.refresh(new_camera)  # Refresh to get the auto-generated ID
+        print(f"New camera inserted with id={new_camera.id}")  # Log the new camera ID
+    except IntegrityError as e:
+        db.rollback()
+        print(f"Integrity error occurred: {e}")
+        raise HTTPException(status_code=400, detail="An error occurred while inserting the camera.")
     except Exception as e:
         db.rollback()
         print(f"An error occurred: {e}")
-        raise
+        raise HTTPException(status_code=400, detail="An error occurred while inserting the camera.")
     finally:
         db.close()
 
 
-def delete_camera_by_id(db: Session, cam_id: int):
+
+def delete_camera_by_id(db: Session, id: int):
     try:
         # Check if the camera exists
-        camera = db.query(Camera).filter(Camera.cam_id == cam_id).first()
+        camera = db.query(Camera).filter(Camera.id == id).first()  # Replace cam_id with id
         
         if not camera:
-            raise HTTPException(status_code=404, detail=f"Camera with cam_id={cam_id} not found.")
+            raise HTTPException(status_code=404, detail=f"Camera with id={id} not found.")
 
         # If it exists, proceed to delete
-        db.execute(delete(Camera).where(Camera.cam_id == cam_id))
+        db.delete(camera)  # Delete the camera instance
         db.commit()
-        print(f"Camera with cam_id={cam_id} deleted successfully.")
+        print(f"Camera with id={id} deleted successfully.")
     
     except Exception as e:
         db.rollback()  # Rollback in case of any error
         print(f"An error occurred: {e}")
-        raise
+        raise HTTPException(status_code=400, detail="An error occurred while deleting the camera.")  # Ensure the string is properly closed
     finally:
         db.close()
+
+
     
 
-def camera_details_for_edit(db: Session, cam_id: int):
+def camera_details_for_edit(db: Session, id: int):
     try:
-        # Fetch the camera details based on cam_id
-        camera = db.query(Camera).filter(Camera.cam_id == cam_id).first()
+        # Fetch the camera details based on id
+        camera = db.query(Camera).filter(Camera.id == id).first()
         
         if camera:
             return {
@@ -777,9 +798,10 @@ def camera_details_for_edit(db: Session, cam_id: int):
         print(f"An error occurred: {e}")
         return None
 
+
 def camera_edit_save(
     db: Session, 
-    cam_id: int,  # Add cam_id parameter
+    id: int,  # ID of the camera to update
     cam_name: str, 
     cam_ip: str, 
     cam_mac: str, 
@@ -792,11 +814,11 @@ def camera_edit_save(
     cam_desc: Optional[str]
 ):
     try:
-        # Fetch the existing camera record to update by cam_id
-        camera = db.query(Camera).filter(Camera.cam_id == cam_id).first()
+        # Fetch the existing camera record to update by id
+        camera = db.query(Camera).filter(Camera.id == id).first()
 
         if not camera:
-            raise ValueError(f"Camera with cam_id={cam_id} not found.")
+            raise ValueError(f"Camera with id={id} not found.")
 
         # Update the camera details
         camera.cam_name = cam_name
@@ -812,7 +834,7 @@ def camera_edit_save(
 
         # Commit the changes to the database
         db.commit()
-        print(f"Camera with cam_id={camera.cam_id} updated successfully.")
+        print(f"Camera with id={camera.id} updated successfully.")
 
     except ValueError as ve:
         print(f"Validation Error: {ve}")
@@ -831,13 +853,40 @@ def camera_edit_save(
 
 
 
+
 ################################# ACCOUNT  ########################################
 ################################# ACCOUNT  ########################################
 ################################# ACCOUNT  ########################################
 
+# Function to get account list
+def get_all_users(db: Session):
+    try:
+        # Query all users from the Account table
+        users = db.query(Account).all()
+        
+        # Return a list of dictionaries representing each user's details
+        return [
+            {
+                "id": user.id,
+                "user_name": user.user_name,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "tel": user.tel,
+                "user_department": user.user_department,
+                "user_status": user.user_status
+            }
+            for user in users
+        ]
+    except Exception as e:
+        # Log and raise an exception if fetching the users fails
+        raise HTTPException(status_code=500, detail=f"An error occurred while fetching users: {str(e)}")
+
+
+
+
 def insert_account(
     db: Session, 
-    user_id: int,  # Add user_id parameter
     user_name: str, 
     password: str, 
     email: str, 
@@ -848,14 +897,13 @@ def insert_account(
     user_status: bool
 ):
     # Check if email or username already exists
-    existing_account = db.query(Account).filter((Account.user_id == user_id) | (Account.user_name == user_name)).first()
+    existing_account = db.query(Account).filter((Account.user_name == user_name) | (Account.email == email)).first()
     
     if existing_account:
-        raise HTTPException(status_code=400, detail="This User ID or Username already exists.")
+        raise HTTPException(status_code=400, detail="This Username or Email already exists.")
     
     try:
         new_account = Account(
-            user_id=user_id,  # Include user_id when creating the account
             user_name=user_name,
             password=password,
             email=email,
@@ -868,7 +916,9 @@ def insert_account(
         
         db.add(new_account)
         db.commit()
-        print(f"New account inserted with user_name={user_name}")
+        db.refresh(new_account)  # Refresh the instance to get the auto-generated id
+        print(f"New account inserted with user_name={user_name} and id={new_account.id}")
+        return new_account  # Return the new account object
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="Error inserting account, possibly duplicate username or email.")
@@ -878,33 +928,43 @@ def insert_account(
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
-def delete_user_by_id(db: Session, user_id: int):
+
+
+def delete_user(db: Session, id: int):
     try:
-        # Fetch user by user_id
-        user = db.query(Account).filter(Account.user_id == user_id).first()
+        # Fetch the user by id from the database
+        user = db.query(Account).filter(Account.id == id).first()
 
+        # If the user does not exist, raise a 404 error
         if not user:
-            raise HTTPException(status_code=404, detail=f"User with user_id={user_id} not found.")
+            raise HTTPException(status_code=404, detail=f"User with id={id} not found.")
+        
+        # Delete the user from the database
+        db.delete(user)
+        db.commit()  # Commit the transaction to delete the user
 
-        db.delete(user)  # Delete the user
-        db.commit()  # Commit the changes
-        print(f"User with user_id={user_id} deleted successfully.")
-    
+        return {"message": f"User with id={id} has been successfully deleted."}
+
+    except HTTPException as http_ex:
+        raise http_ex  # Re-raise HTTPExceptions directly to be caught by the endpoint handler
+
     except Exception as e:
-        db.rollback()  # Rollback in case of any error
-        print(f"An error occurred while deleting user: {e}")
-        raise
+        # Rollback in case of an error
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"An error occurred while deleting user: {str(e)}")
 
 
-def user_details_for_edit(db: Session, user_id: int):
+def user_details_for_edit(db: Session, id: int):
     try:
-        user = db.query(Account).filter(Account.user_id == user_id).first()  # Fetch user by user_id
+        # Fetch the user by id from the database
+        user = db.query(Account).filter(Account.id == id).first()
+        
+        # If the user does not exist, raise a 404 error
         if not user:
-            raise HTTPException(status_code=404, detail=f"User with user_id={user_id} not found.")
-
-        # Return the user details
+            raise HTTPException(status_code=404, detail=f"User with id={id} not found.")
+        
+        # Return the user's details without redundantly fetching id
         return {
-            "user_id": user.user_id,
             "user_name": user.user_name,
             "password": user.password,
             "email": user.email,
@@ -914,13 +974,19 @@ def user_details_for_edit(db: Session, user_id: int):
             "user_department": user.user_department,
             "user_status": user.user_status
         }
+
+    except HTTPException as http_ex:
+        raise http_ex  # Re-raise HTTPExceptions directly
+
     except Exception as e:
+        # Handle any other errors, logging can be added for debugging
         raise HTTPException(status_code=500, detail=f"An error occurred while fetching user details: {str(e)}")
+
 
 
 def user_edit_save(
     db: Session, 
-    user_id: int,  # Use user_id to fetch the record
+    id: int,  # Use id from the path
     user_name: str, 
     password: str, 
     email: str, 
@@ -931,11 +997,11 @@ def user_edit_save(
     user_status: bool
 ):
     try:
-        # Fetch the user record by user_id
-        user = db.query(Account).filter(Account.user_id == user_id).first()
+        # Fetch the user record by id
+        user = db.query(Account).filter(Account.id == id).first()
 
         if not user:
-            raise HTTPException(status_code=404, detail=f"User not found with user_id={user_id}.")
+            raise HTTPException(status_code=404, detail=f"User not found with id={id}.")
 
         # Update user details
         user.user_name = user_name
@@ -948,7 +1014,10 @@ def user_edit_save(
         user.user_status = user_status
 
         db.commit()  # Save the changes to the database
-        return {"message": f"User with user_id={user_id} updated successfully."}
+        return {"message": f"User with id={id} updated successfully."}
     except Exception as e:
         db.rollback()  # Rollback in case of any error
         raise HTTPException(status_code=500, detail=f"An error occurred while updating user: {str(e)}")
+
+
+
