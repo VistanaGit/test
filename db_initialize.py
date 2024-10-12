@@ -1,16 +1,15 @@
 import logging
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Float, inspect
 from sqlalchemy.orm import Session
-from sqlalchemy.ext.declarative import declarative_base
-from enum import Enum  # Import Enum from the enum module
 from db_configure import engine, Base  # Import engine and Base from db_configure
+from enum import Enum
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Define UserStatusEnum
-class UserStatusEnum(Enum):  # Change PyEnum to Enum
+class UserStatusEnum(Enum):
     active = 'active'
     inactive = 'inactive'
 
@@ -18,16 +17,15 @@ class UserStatusEnum(Enum):  # Change PyEnum to Enum
 class Account(Base):
     __tablename__ = 'tbl_accounts'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, unique=True)
-    user_name = Column(String, unique=True, nullable=False)  # Ensure username is not null
-    password = Column(String, nullable=False)  # Ensure password is not null
-    email = Column(String, unique=True, nullable=False)  # Ensure email is not null
+    id = Column(Integer, primary_key=True, autoincrement=True)  # Ensure id is auto-incrementing
+    user_name = Column(String, unique=True, nullable=False)
+    password = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False)
     first_name = Column(String)
     last_name = Column(String)
     tel = Column(String)
-    user_department = Column(String)    
-    user_status = Column(Boolean, default=True)
+    user_department = Column(String)
+    user_status = Column(Boolean)
 
 # Define the Visitor Model
 class Visitor(Base):
@@ -48,7 +46,6 @@ class Camera(Base):
     __tablename__ = 'tbl_cameras'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    cam_id = Column(Integer, unique=True)
     cam_name = Column(String)
     cam_ip = Column(String)
     cam_mac = Column(String)
