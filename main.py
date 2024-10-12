@@ -8,12 +8,13 @@ import logging
 from typing import Optional
 from starlette.concurrency import run_in_threadpool  # <-- Import the correct module
 
+
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
-from service_functions import (
+from service_functions_3 import (
     recover_password,
     login,
     get_counter_list,
@@ -292,10 +293,12 @@ async def gender_monitoring_endpoint(selected_date_range: dict,
 
 
 @app.get("/system_info")
-def get_system_info_route():
+def get_system_info_route(token: str = Depends(oauth2_scheme)):
     """
     API endpoint to get both hardware specifications and current status.
     """
+    token_data = verify_token(token)  # Verifying the token)
+
     system_info = get_system_info()
     return system_info
 
@@ -320,9 +323,10 @@ async def report_visitor_table(
     id: int = None,
     age: str = None,
     gender: str = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
 ):
-    # token_data = verify_token(token)  # Verifying the token
+    token_data = verify_token(token)  # Verifying the token
     visitors = get_visitor_records(db, start_date, end_date, counter_id, id, age, gender)
     
     # Instead of raising 404, return the visitors data which could be empty
