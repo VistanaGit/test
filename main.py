@@ -1,13 +1,12 @@
 import os
 import cv2
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Query, Path
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import time
 import logging
 from typing import Optional
 from starlette.concurrency import run_in_threadpool  # <-- Import the correct module
-
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
@@ -17,8 +16,6 @@ from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Noti
 from service_functions import (
     recover_password,
     login,
-    get_account_list,
-    get_camera_list,
     get_counter_list,
     get_roi_list,
     get_visitor_list,
@@ -39,13 +36,14 @@ from service_functions import (
     get_visitor_records,
     get_most_recent_video,
     stream_video_frames,
+    get_all_cameras,
     insert_camera,
-    get_next_cam_id,
     delete_camera_by_id,
     camera_details_for_edit,
     camera_edit_save,
+    get_all_users,
     insert_account,
-    delete_user_by_id,
+    delete_user,
     user_details_for_edit,
     user_edit_save,
     PasswordRecoveryData,
@@ -153,15 +151,7 @@ def get_account_list_endpoint(token: str = Depends(oauth2_scheme), db: Session =
         logging.error(f"Error fetching account list: {e}")  # Log the error for debugging
         return {"message": "Error fetching account list"}  # Return a simple message
 
-@app.get("/camera_list")
-def get_camera_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
-    token_data = verify_token(token)  # Verifying the token
-    try:
-        cameras = get_camera_list(db)  # Fetch camera list from the database
-        return cameras
-    except Exception as e:
-        logging.error(f"Error fetching camera list: {e}")  # Log the error for debugging
-        return {"message": "Error fetching camera list"}  # Return a simple message
+
 
 @app.get("/counter_list")
 def get_counter_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
@@ -322,22 +312,20 @@ def latest_disabled_camera(db: Session = Depends(get_db), token: str = Depends(o
 
 ################################# REPORT PAGE ########################################
 
-@app.post("/report_visitor_table/")
+@app.get("/report_visitor_table/")  # Change to GET method
 async def report_visitor_table(
     start_date: str,
     end_date: str,
     counter_id: int = None,
-    cam_id: int = None,
+    id: int = None,
     age: str = None,
     gender: str = None,
-    db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    db: Session = Depends(get_db)
 ):
-    token_data = verify_token(token)  # Verifying the token
-    visitors = get_visitor_records(db, start_date, end_date, counter_id, cam_id, age, gender)
-    if not visitors:
-        raise HTTPException(status_code=404, detail="No visitors found for the specified date range.")
+    # token_data = verify_token(token)  # Verifying the token
+    visitors = get_visitor_records(db, start_date, end_date, counter_id, id, age, gender)
     
+    # Instead of raising 404, return the visitors data which could be empty
     return {"visitors": visitors}
 
 
@@ -346,7 +334,7 @@ def export_visitor_records_csv(
     start_date: str,
     end_date: str,
     counter_id: int = None,
-    cam_id: int = None,
+    id: int = None,
     age: str = None,
     gender: str = None,
     db: Session = Depends(get_db),
@@ -356,7 +344,7 @@ def export_visitor_records_csv(
     if not start_date or not end_date:
         raise HTTPException(status_code=400, detail="Start date and end date must be provided.")
     
-    data = get_visitor_records(db, start_date, end_date, counter_id, cam_id, age, gender)
+    data = get_visitor_records(db, start_date, end_date, counter_id, id, age, gender)
     csv_file = export_visitor_records_to_csv(data)
     return StreamingResponse(csv_file, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=visitor_records.csv"})
 
@@ -365,7 +353,7 @@ def export_visitor_records_excel(
     start_date: str,
     end_date: str,
     counter_id: int = None,
-    cam_id: int = None,
+    id: int = None,
     age: str = None,
     gender: str = None,
     db: Session = Depends(get_db),
@@ -375,7 +363,7 @@ def export_visitor_records_excel(
     if not start_date or not end_date:
         raise HTTPException(status_code=400, detail="Start date and end date must be provided.")
     
-    data = get_visitor_records(db, start_date, end_date, counter_id, cam_id, age, gender)
+    data = get_visitor_records(db, start_date, end_date, counter_id, id, age, gender)
     excel_file = export_visitor_records_to_excel(data)
     return StreamingResponse(excel_file, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              headers={"Content-Disposition": "attachment; filename=visitor_records.xlsx"})
@@ -447,14 +435,13 @@ async def report_people_duration_per_counter(
         # Handle unexpected errors
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
-@app.post("/report_details_of_selected_counter/")
+@app.get("/report_details_of_selected_counter/{counter_id}")
 async def report_details_of_selected_counter_route(
     counter_id: int,
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
 ):
     try:
-
         # Verify token
         token_data = verify_token(token)
 
@@ -472,33 +459,33 @@ async def report_details_of_selected_counter_route(
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
+
 ################################ CAMERAS ######################################
 
-@app.get("/camera_video_view")
-async def camera_video_view(cam_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
-    # Get the most recent video for the selected camera
-    try:
-        # Verify token
-        token_data = verify_token(token)
-
-        video_path = get_most_recent_video(cam_id)
-    except HTTPException as e:
-        raise e
+@app.get("/cameras")
+def get_camera_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
     
-    # Stream the video frames
-    return StreamingResponse(stream_video_frames(video_path), media_type="multipart/x-mixed-replace; boundary=frame")
+    token_data = verify_token(token)  # Verifying the token
+    try:
+        cameras = get_all_cameras(db)  # Fetch camera list from the database
+        return cameras
+    except Exception as e:
+        logging.error(f"Error fetching camera list: {e}")  # Log the error for debugging
+        raise HTTPException(status_code=500, detail="Error fetching camera list")  # Raise an HTTP exception for error handling
 
-# Pydantic model for camera data
+
+
+
+# Define the Pydantic model for Camera data
 class CameraData(BaseModel):
     cam_name: str
     cam_ip: str
     cam_mac: str
-    cam_enable: bool  # Boolean value from the toggle switch
+    cam_enable: bool
     cam_rtsp: str
-    cam_desc: Optional[str] = None  # Optional camera description
+    cam_desc: str
 
-
-@app.post("/insert_camera")
+@app.post("/cameras")
 async def insert_camera_service(
     camera_data: CameraData,  # Use Pydantic model to receive the data
     db: Session = Depends(get_db),
@@ -507,9 +494,6 @@ async def insert_camera_service(
     try:
         # Verify token
         token_data = verify_token(token)
-
-        # Get the next cam_id
-        next_cam_id = get_next_cam_id(db)
 
         # Call the insert_camera function to insert the new record
         insert_camera(
@@ -522,19 +506,22 @@ async def insert_camera_service(
             cam_desc=camera_data.cam_desc
         )
 
-        # Return the next_cam_id as part of the response
-        return {"message": f"Camera inserted successfully with cam_id= {next_cam_id}", "cam_id": next_cam_id}
+        # Return a success message
+        return {"message": "Camera inserted successfully."}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
+
+
+
 class CameraDeleteRequest(BaseModel):
-    cam_id: int  # Field to hold the camera ID
+    id: int  # Field to hold the camera ID
 
 
-@app.delete("/delete_camera")
+@app.delete("/cameras/{id}")
 async def delete_camera_service(
-    camera_data: CameraDeleteRequest,  # Accept the camera ID in the request body
+    id: int,  # Accept the camera ID as a path parameter
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
 ):
@@ -543,18 +530,16 @@ async def delete_camera_service(
         token_data = verify_token(token)
 
         # Call the delete function and pass the session (db)
-        delete_camera_by_id(db, camera_data.cam_id)  # Pass cam_id from the request body
-        return {"message": f"Camera with cam_id={camera_data.cam_id} deleted successfully."}
+        delete_camera_by_id(db, id)  # Pass id from the path parameter
+        return {"message": f"Camera with id={id} deleted successfully."}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-class CameraDetailsRequest(BaseModel):
-    cam_id: int  # The camera ID to fetch details
 
-@app.post("/camera_details_for_edit")
+@app.get("/cameras/{id}")
 async def camera_details_for_edit_service(
-    camera_data: CameraDetailsRequest,  # Use the new Pydantic model for the request body
+    id: int,  # Accept the camera ID as a path parameter
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
 ):
@@ -563,7 +548,7 @@ async def camera_details_for_edit_service(
         token_data = verify_token(token)
 
         # Call the camera_details_for_edit function from service_functions
-        camera_details = camera_details_for_edit(db, camera_data.cam_id)  # Use cam_id from request body
+        camera_details = camera_details_for_edit(db, id)  # Use id from path parameter
         
         if camera_details is not None:
             return {"camera_details": camera_details}
@@ -575,9 +560,9 @@ async def camera_details_for_edit_service(
 
 
 
+
 # Pydantic model for camera edit data
 class CameraEditData(BaseModel):
-    cam_id: int  # Include cam_id in the request body
     cam_name: str
     cam_ip: str
     cam_mac: str
@@ -589,8 +574,10 @@ class CameraEditData(BaseModel):
     time_duration_calculation_status: bool
     cam_desc: Optional[str] = None  # Optional description
 
-@app.put("/camera_edit_save")
+#@app.put("/cameras/{id}")  # Update the endpoint to /cameras/{id}
+@app.patch("/cameras/{id}")  # Optionally allow PATCH as well
 async def camera_edit_save_service(
+    id: int,  # Accept id as a path parameter
     camera_data: CameraEditData,
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
@@ -602,7 +589,7 @@ async def camera_edit_save_service(
         # Call the camera_edit_save function from service_functions
         camera_edit_save(
             db=db,
-            cam_id=camera_data.cam_id,  # Pass cam_id from the request
+            id=id,  # Pass id from the path parameter
             cam_name=camera_data.cam_name,
             cam_ip=camera_data.cam_ip,
             cam_mac=camera_data.cam_mac,
@@ -614,17 +601,57 @@ async def camera_edit_save_service(
             time_duration_calculation_status=camera_data.time_duration_calculation_status,
             cam_desc=camera_data.cam_desc  # Pass optional description
         )
-        return {"message": "Camera updated successfully."}
+        return {"message": f"Camera with ID {id} updated successfully."}  # Include camera ID in the response
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 
+
+
+
+
+@app.get("/camera_video_view")
+async def camera_video_view(id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    # Get the most recent video for the selected camera
+    try:
+        # Verify token
+        token_data = verify_token(token)
+
+        video_path = get_most_recent_video(id)
+    except HTTPException as e:
+        raise e
+    
+    # Stream the video frames
+    return StreamingResponse(stream_video_frames(video_path), media_type="multipart/x-mixed-replace; boundary=frame")
+
 ################################ ACCOUNT ######################################
+
+# Creat users service to fetch all users
+@app.get("/users")
+async def get_all_users_service(
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
+    try:
+        # Verify token
+        token_data = verify_token(token)
+
+        # Fetch all user accounts by calling the service function
+        users = get_all_users(db)
+        
+        return users
+    except HTTPException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred while fetching the users: {str(e)}")
+
+
+
+
 
 # Create a Pydantic model for the account data
 class AccountCreate(BaseModel):
-    user_id: int  # Add user_id to the Pydantic model
     user_name: str
     password: str
     email: str
@@ -634,21 +661,19 @@ class AccountCreate(BaseModel):
     user_department: str
     user_status: bool
 
-@app.post("/insert_account")
+@app.post("/users")
 async def insert_account_service(
     account_data: AccountCreate,  # Accept JSON body data
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
 ):
     try:
-
         # Verify token
         token_data = verify_token(token)
 
         # Call the insert_account function from service_functions
-        insert_account(
+        new_account = insert_account(
             db=db,
-            user_id=account_data.user_id,  # Pass user_id from the request body
             user_name=account_data.user_name,
             password=account_data.password,
             email=account_data.email,
@@ -658,7 +683,7 @@ async def insert_account_service(
             user_department=account_data.user_department,
             user_status=account_data.user_status
         )
-        return {"message": "Account inserted successfully."}
+        return {"message": "Account inserted successfully.", "id": new_account.id}
     except HTTPException as e:
         raise e  # Re-raise the HTTPException from the service function
     except Exception as e:
@@ -666,13 +691,15 @@ async def insert_account_service(
 
 
 
+
+
 class UserDeleteRequest(BaseModel):
-    user_id: int  # The user ID to delete
+    id: int  # The user ID to delete
 
 
-@app.delete("/delete_user")
+@app.delete("/users/{id}")
 async def delete_user_service(
-    user_data: UserDeleteRequest,  # Use the new Pydantic model for the request body
+    id: int = Path(..., description="The ID of the user to delete"),  # id as a path parameter
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
 ):
@@ -680,32 +707,30 @@ async def delete_user_service(
         # Verify token
         token_data = verify_token(token)
 
-        # Call the delete function with the user ID from the request body
-        delete_user_by_id(db, user_data.user_id)
-        return {"message": f"User with user_id={user_data.user_id} deleted successfully."}
+        # Call the delete_user function from service_functions
+        return delete_user(db, id)  # Use id from the path parameter
+        
     except HTTPException as e:
-        raise e
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"An error occurred while processing the request: {str(e)}")
 
 
-class UserDetailsRequest(BaseModel):
-    user_id: int  # The user ID to fetch details
 
-@app.post("/user_details_for_edit")
+@app.get("/users/{id}")
 async def user_details_for_edit_service(
-    user_data: UserDetailsRequest,  # Use the new Pydantic model for the request body
+    id: int = Path(..., description="The ID of the user to retrieve details for"),  # id as a path parameter
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
 ):
     try:
         # Verify token
         token_data = verify_token(token)
-        
+
         # Call the user_details_for_edit function from service_functions
-        user_details = user_details_for_edit(db, user_data.user_id)  # Use user_id from request body
+        user_details = user_details_for_edit(db, id)  # Use id from the path parameter
         
-        return user_details
+        return user_details  # Return the user details
     except HTTPException as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     except Exception as e:
@@ -714,9 +739,10 @@ async def user_details_for_edit_service(
 
 
 
-# Pydantic model for user data when editing
+
+
+# Pydantic model for user data (excluding id)
 class UserEdit(BaseModel):
-    user_id: int  # Add user_id to the body request
     user_name: str
     password: str
     email: str
@@ -726,20 +752,21 @@ class UserEdit(BaseModel):
     user_department: str
     user_status: bool
 
-@app.put("/user_edit_save")
+@app.put("/users/{id}")
 async def user_edit_save_service(
-    user_data: UserEdit,  # Receive user data with user_id
-    db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    user_data: UserEdit,  # Non-default argument (Pydantic model for user data)
+    id: int = Path(..., description="The ID of the user to edit"),  # Default argument
+    db: Session = Depends(get_db),  # Default argument
+    token: str = Depends(oauth2_scheme)  # Default argument
 ):
     try:
         # Verify token
         token_data = verify_token(token)
 
-        # Call the user_edit_save function from service_functions and pass user_id
+        # Call the user_edit_save function from service_functions and pass id
         return user_edit_save(
             db=db,
-            user_id=user_data.user_id,  # Pass user_id from the request
+            id=id,  # Use id from the path
             user_name=user_data.user_name,
             password=user_data.password,
             email=user_data.email,
