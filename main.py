@@ -613,14 +613,12 @@ async def camera_edit_save_service(
 
 
 
-
-
 @app.get("/camera_video_view")
-async def camera_video_view(id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+async def camera_video_view(id: int, db: Session = Depends(get_db)):
     # Get the most recent video for the selected camera
     try:
         # Verify token
-        token_data = verify_token(token)
+        #token_data = verify_token(token)
 
         video_path = get_most_recent_video(id)
     except HTTPException as e:
@@ -739,9 +737,6 @@ async def user_details_for_edit_service(
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred while processing the request: {str(e)}")
-
-
-
 
 
 
