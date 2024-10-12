@@ -6,13 +6,61 @@ from datetime import datetime, timedelta
 def insert_accounts():
     session = SessionLocal()
     try:
+        # Prepare a list of accounts without id, as it's auto-incremented
         accounts = [
-            Account(user_id=1001, user_name='ahmad_hosseini', password='password123', email='ahmad@example.com', first_name='Ahmad', last_name='Hosseini', tel='09123456789', user_department='Department A', user_status=True),
-            Account(user_id=1002, user_name='reza_shokouhi', password='password456', email='reza@example.com', first_name='Reza', last_name='Shokouhi', tel='09234567890', user_department='Department B', user_status=True),
-            Account(user_id=1003, user_name='fatemeh_ghasemi', password='password789', email='fatemeh@example.com', first_name='Fatemeh', last_name='Ghasemi', tel='09345678901', user_department='Department C', user_status=True),
-            Account(user_id=1004, user_name='mehdi_rahimi', password='password012', email='mehdi@example.com', first_name='Mehdi', last_name='Rahimi', tel='09456789012', user_department='Department D', user_status=False),  # Set to False for inactive
-            Account(user_id=1005, user_name='leila_mohammadi', password='password345', email='leila@example.com', first_name='Leila', last_name='Mohammadi', tel='09567890123', user_department='Department E', user_status=True)
+            Account(
+                user_name='ahmad_hosseini', 
+                password='password123', 
+                email='ahmad@example.com', 
+                first_name='Ahmad', 
+                last_name='Hosseini', 
+                tel='09123456789', 
+                user_department='Department A', 
+                user_status=True
+            ),
+            Account(
+                user_name='reza_shokouhi', 
+                password='password456', 
+                email='reza@example.com', 
+                first_name='Reza', 
+                last_name='Shokouhi', 
+                tel='09234567890', 
+                user_department='Department B', 
+                user_status=True
+            ),
+            Account(
+                user_name='fatemeh_ghasemi', 
+                password='password789', 
+                email='fatemeh@example.com', 
+                first_name='Fatemeh', 
+                last_name='Ghasemi', 
+                tel='09345678901', 
+                user_department='Department C', 
+                user_status=True
+            ),
+            Account(
+                user_name='mehdi_rahimi', 
+                password='password012', 
+                email='mehdi@example.com', 
+                first_name='Mehdi', 
+                last_name='Rahimi', 
+                tel='09456789012', 
+                user_department='Department D', 
+                user_status=False  # Set to False for inactive
+            ),
+            Account(
+                user_name='leila_mohammadi', 
+                password='password345', 
+                email='leila@example.com', 
+                first_name='Leila', 
+                last_name='Mohammadi', 
+                tel='09567890123', 
+                user_department='Department E', 
+                user_status=True
+            )
         ]
+        
+        # Add all accounts to the session
         session.add_all(accounts)
         session.commit()
         print("Accounts inserted successfully!")
@@ -22,16 +70,17 @@ def insert_accounts():
     finally:
         session.close()
 
+
 # Insert cameras data
 def insert_cameras():
     session = SessionLocal()
     try:
         cameras = [
-            Camera(cam_id=1, cam_name='Camera 1', cam_ip='192.168.1.10', cam_mac='00:0a:95:9d:68:16', cam_enable=True, cam_rtsp='rtsp://camera1', cam_desc='Front Door Camera', cam_last_date_modified='2024-10-01 08:00:00', age_detect_status=False, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True),
-            Camera(cam_id=2, cam_name='Camera 2', cam_ip='192.168.1.11', cam_mac='00:0a:95:9d:68:17', cam_enable=True, cam_rtsp='rtsp://camera2', cam_desc='Back Door Camera', cam_last_date_modified='2024-10-02 10:30:00', age_detect_status=True, gender_detect_status=False, person_counting_status=False, time_duration_calculation_status=True),
-            Camera(cam_id=3, cam_name='Camera 3', cam_ip='192.168.1.12', cam_mac='00:0a:95:9d:68:18', cam_enable=False, cam_rtsp='rtsp://camera3', cam_desc='Parking Lot Camera', cam_last_date_modified='2024-10-03 12:15:00', age_detect_status=True, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True),
-            Camera(cam_id=4, cam_name='Camera 4', cam_ip='192.168.1.13', cam_mac='00:0a:95:9d:68:19', cam_enable=True, cam_rtsp='rtsp://camera4', cam_desc='Lobby Camera', cam_last_date_modified='2024-10-04 14:45:00', age_detect_status=True, gender_detect_status=False, person_counting_status=True, time_duration_calculation_status=False),
-            Camera(cam_id=5, cam_name='Camera 5', cam_ip='192.168.1.14', cam_mac='00:0a:95:9d:68:20', cam_enable=False, cam_rtsp='rtsp://camera5', cam_desc='Garage Camera', cam_last_date_modified='2024-10-05 16:00:00', age_detect_status=False, gender_detect_status=True, person_counting_status=False, time_duration_calculation_status=True)
+            Camera(cam_name='Camera 1', cam_ip='192.168.1.10', cam_mac='00:0a:95:9d:68:16', cam_enable=True, cam_rtsp='rtsp://camera1', cam_desc='Front Door Camera', cam_last_date_modified='2024-10-01 08:00:00', age_detect_status=False, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True),
+            Camera(cam_name='Camera 2', cam_ip='192.168.1.11', cam_mac='00:0a:95:9d:68:17', cam_enable=True, cam_rtsp='rtsp://camera2', cam_desc='Back Door Camera', cam_last_date_modified='2024-10-02 10:30:00', age_detect_status=True, gender_detect_status=False, person_counting_status=False, time_duration_calculation_status=True),
+            Camera(cam_name='Camera 3', cam_ip='192.168.1.12', cam_mac='00:0a:95:9d:68:18', cam_enable=False, cam_rtsp='rtsp://camera3', cam_desc='Parking Lot Camera', cam_last_date_modified='2024-10-03 12:15:00', age_detect_status=True, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True),
+            Camera(cam_name='Camera 4', cam_ip='192.168.1.13', cam_mac='00:0a:95:9d:68:19', cam_enable=True, cam_rtsp='rtsp://camera4', cam_desc='Lobby Camera', cam_last_date_modified='2024-10-04 14:45:00', age_detect_status=True, gender_detect_status=False, person_counting_status=True, time_duration_calculation_status=False),
+            Camera(cam_name='Camera 5', cam_ip='192.168.1.14', cam_mac='00:0a:95:9d:68:20', cam_enable=False, cam_rtsp='rtsp://camera5', cam_desc='Garage Camera', cam_last_date_modified='2024-10-05 16:00:00', age_detect_status=False, gender_detect_status=True, person_counting_status=False, time_duration_calculation_status=True)
         ]
         session.add_all(cameras)
         session.commit()
