@@ -692,26 +692,39 @@ def get_most_recent_video(id: int) -> str:
     
     return most_recent_video_path
 
-# Stream video frames
-def stream_video_frames(video_path: str) -> Generator:
+
+
+
+
+
+# Stream video frames with the option to resize
+def stream_video_frames(video_path: str, width: int = 640, height: int = 480) -> Generator:
     cap = cv2.VideoCapture(video_path)
-    
+
     if not cap.isOpened():
         raise HTTPException(status_code=500, detail="Unable to open video file.")
-    
+
     while True:
         ret, frame = cap.read()
         if not ret:
             break
-        # Encode frame as a JPEG
+        
+        # Resize the frame to the specified width and height
+        frame = cv2.resize(frame, (width, height))
+
+        # Encode the frame as a JPEG
         _, buffer = cv2.imencode('.jpg', frame)
         frame_bytes = buffer.tobytes()
-        
+
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-    
+
     cap.release()
 
+
+
+
+    
 
 def insert_camera(db: Session, cam_name: str, cam_ip: str, cam_mac: str, cam_enable: bool, cam_rtsp: str, cam_desc: Optional[str]):
     # Check if the IP address or MAC address already exists in the table
@@ -782,7 +795,8 @@ def camera_details_for_edit(db: Session, id: int):
         camera = db.query(Camera).filter(Camera.id == id).first()
         
         if camera:
-            return {
+            # Create the response dictionary with the mandatory fields
+            camera_details = {
                 "cam_ip": camera.cam_ip,
                 "cam_mac": camera.cam_mac,
                 "cam_enable": camera.cam_enable,
@@ -792,6 +806,16 @@ def camera_details_for_edit(db: Session, id: int):
                 "person_counting_status": camera.person_counting_status,
                 "time_duration_calculation_status": camera.time_duration_calculation_status
             }
+            
+            # Add ROIs only if they are not None or empty
+            if camera.ROI_1:
+                camera_details["ROI_1"] = camera.ROI_1
+            if camera.ROI_2:
+                camera_details["ROI_2"] = camera.ROI_2
+            if camera.ROI_3:
+                camera_details["ROI_3"] = camera.ROI_3
+            
+            return camera_details
         else:
             return None
     except Exception as e:
@@ -848,6 +872,34 @@ def camera_edit_save(
 
 
 
+def delete_selected_roi(db: Session, camera_id: int, roi_id: int):
+    try:
+        # Fetch the camera by its ID
+        camera = db.query(Camera).filter(Camera.id == camera_id).first()
+
+        if not camera:
+            return False  # Camera not found
+
+        # Map ROI_ID to the actual column name
+        roi_field = None
+        if roi_id == 1:
+            roi_field = 'ROI_1'
+        elif roi_id == 2:
+            roi_field = 'ROI_2'
+        elif roi_id == 3:
+            roi_field = 'ROI_3'
+        
+        if roi_field:
+            # Set the selected ROI field to None
+            setattr(camera, roi_field, None)
+            db.commit()
+            return True
+        else:
+            return False  # ROI_ID is invalid or out of range
+    except Exception as e:
+        db.rollback()
+        print(f"An error occurred: {e}")
+        return False
 
 
 
@@ -1018,6 +1070,4 @@ def user_edit_save(
     except Exception as e:
         db.rollback()  # Rollback in case of any error
         raise HTTPException(status_code=500, detail=f"An error occurred while updating user: {str(e)}")
-
-
 
