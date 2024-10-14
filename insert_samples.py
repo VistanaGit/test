@@ -76,11 +76,11 @@ def insert_cameras():
     session = SessionLocal()
     try:
         cameras = [
-            Camera(cam_name='Camera 1', cam_ip='192.168.1.10', cam_mac='00:0a:95:9d:68:16', cam_enable=True, cam_rtsp='rtsp://camera1', cam_desc='Front Door Camera', cam_last_date_modified='2024-10-01 08:00:00', age_detect_status=False, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True),
-            Camera(cam_name='Camera 2', cam_ip='192.168.1.11', cam_mac='00:0a:95:9d:68:17', cam_enable=True, cam_rtsp='rtsp://camera2', cam_desc='Back Door Camera', cam_last_date_modified='2024-10-02 10:30:00', age_detect_status=True, gender_detect_status=False, person_counting_status=False, time_duration_calculation_status=True),
-            Camera(cam_name='Camera 3', cam_ip='192.168.1.12', cam_mac='00:0a:95:9d:68:18', cam_enable=False, cam_rtsp='rtsp://camera3', cam_desc='Parking Lot Camera', cam_last_date_modified='2024-10-03 12:15:00', age_detect_status=True, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True),
-            Camera(cam_name='Camera 4', cam_ip='192.168.1.13', cam_mac='00:0a:95:9d:68:19', cam_enable=True, cam_rtsp='rtsp://camera4', cam_desc='Lobby Camera', cam_last_date_modified='2024-10-04 14:45:00', age_detect_status=True, gender_detect_status=False, person_counting_status=True, time_duration_calculation_status=False),
-            Camera(cam_name='Camera 5', cam_ip='192.168.1.14', cam_mac='00:0a:95:9d:68:20', cam_enable=False, cam_rtsp='rtsp://camera5', cam_desc='Garage Camera', cam_last_date_modified='2024-10-05 16:00:00', age_detect_status=False, gender_detect_status=True, person_counting_status=False, time_duration_calculation_status=True)
+            Camera(cam_name='Camera 1', cam_ip='192.168.1.10', cam_mac='00:0a:95:9d:68:16', cam_enable=True, cam_rtsp='rtsp://camera1', cam_desc='Front Door Camera', cam_last_date_modified='2024-10-01 08:00:00', age_detect_status=False, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True, ROI_1='10,20, 30,40', ROI_2=None, ROI_3='90,100, 110,120'),
+            Camera(cam_name='Camera 2', cam_ip='192.168.1.11', cam_mac='00:0a:95:9d:68:17', cam_enable=True, cam_rtsp='rtsp://camera2', cam_desc='Back Door Camera', cam_last_date_modified='2024-10-02 10:30:00', age_detect_status=True, gender_detect_status=False, person_counting_status=False, time_duration_calculation_status=True, ROI_1='15,25, 35,45', ROI_2='55,65, 75,85', ROI_3='95,105, 115,125'),
+            Camera(cam_name='Camera 3', cam_ip='192.168.1.12', cam_mac='00:0a:95:9d:68:18', cam_enable=False, cam_rtsp='rtsp://camera3', cam_desc='Parking Lot Camera', cam_last_date_modified='2024-10-03 12:15:00', age_detect_status=True, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True, ROI_1='20,30, 40,50', ROI_2='60,70, 80,90', ROI_3='100,110, 120,130'),
+            Camera(cam_name='Camera 4', cam_ip='192.168.1.13', cam_mac='00:0a:95:9d:68:19', cam_enable=True, cam_rtsp='rtsp://camera4', cam_desc='Lobby Camera', cam_last_date_modified='2024-10-04 14:45:00', age_detect_status=True, gender_detect_status=False, person_counting_status=True, time_duration_calculation_status=False, ROI_1='25,35, 45,55', ROI_2='65,75, 85,95', ROI_3='105,115, 125,135'),
+            Camera(cam_name='Camera 5', cam_ip='192.168.1.14', cam_mac='00:0a:95:9d:68:20', cam_enable=False, cam_rtsp='rtsp://camera5', cam_desc='Garage Camera', cam_last_date_modified='2024-10-05 16:00:00', age_detect_status=False, gender_detect_status=True, person_counting_status=False, time_duration_calculation_status=True, ROI_1='30,40, 50,60', ROI_2='70,80, 90,100', ROI_3=None)
         ]
         session.add_all(cameras)
         session.commit()
@@ -90,6 +90,7 @@ def insert_cameras():
         print(f"An error occurred: {e}")
     finally:
         session.close()
+
 
 
 
