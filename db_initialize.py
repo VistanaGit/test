@@ -58,6 +58,11 @@ class Camera(Base):
     cam_last_date_modified = Column(DateTime)
     cam_desc = Column(Text)
 
+    # New ROI columns
+    ROI_1 = Column(String, nullable=True)  # ROI_1 column to store ROI data (e.g., coordinates)
+    ROI_2 = Column(String, nullable=True)  # ROI_2 column
+    ROI_3 = Column(String, nullable=True)  # ROI_3 column
+
 # Define the ROI Model
 class ROI(Base):
     __tablename__ = 'tbl_rois'
