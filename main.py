@@ -14,7 +14,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
-from service_functions import (
+from service_functions_3 import (
     recover_password,
     login,
     get_counter_list,
@@ -42,6 +42,7 @@ from service_functions import (
     delete_camera_by_id,
     camera_details_for_edit,
     camera_edit_save,
+    delete_selected_roi,
     get_all_users,
     insert_account,
     delete_user,
@@ -93,7 +94,7 @@ def login_endpoint(login_data: LoginData, db: Session = Depends(get_db)):
 VIDEO_DIRECTORY = "Videos/"  # Path to the Videos directory
 
 @app.get("/video/{filename}")
-def stream_video(filename: str):
+def stream_video(filename: str, width: int = 640, height: int = 480):
     # Allowed video extensions
     allowed_extensions = [".mp4", ".avi"]
 
@@ -127,6 +128,9 @@ def stream_video(filename: str):
             if not success:
                 break
 
+            # Resize the frame to the specified dimensions
+            frame = cv2.resize(frame, (width, height))
+
             # Convert the frame to JPG format
             _, buffer = cv2.imencode('.jpg', frame)
 
@@ -140,6 +144,7 @@ def stream_video(filename: str):
 
     # Return streaming response with multipart data
     return StreamingResponse(generate_video_stream(), media_type="multipart/x-mixed-replace; boundary=frame")
+
 
 # Database query endpoints (authentication required)
 @app.get("/account_list")
@@ -478,8 +483,6 @@ def get_camera_list_endpoint(db: Session = Depends(get_db), token: str = Depends
         raise HTTPException(status_code=500, detail="Error fetching camera list")  # Raise an HTTP exception for error handling
 
 
-
-
 # Define the Pydantic model for Camera data
 class CameraData(BaseModel):
     cam_name: str
@@ -517,8 +520,6 @@ async def insert_camera_service(
 
 
 
-
-
 class CameraDeleteRequest(BaseModel):
     id: int  # Field to hold the camera ID
 
@@ -540,7 +541,6 @@ async def delete_camera_service(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-
 @app.get("/cameras/{id}")
 async def camera_details_for_edit_service(
     id: int,  # Accept the camera ID as a path parameter
@@ -560,8 +560,6 @@ async def camera_details_for_edit_service(
             raise HTTPException(status_code=404, detail="Camera not found.")
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-
-
 
 
 
@@ -612,6 +610,35 @@ async def camera_edit_save_service(
 
 
 
+@app.delete("/delete_roi/{camera_id}/{roi_id}")
+def delete_roi(camera_id: int, roi_id: int, db: Session = Depends(get_db),
+               token: str = Depends(oauth2_scheme)):
+    try:
+        # Verify token
+        token_data = verify_token(token)
+        
+        # Delete the selected ROI
+        result = delete_selected_roi(db, camera_id, roi_id)
+        
+        if result:
+            return {"message": f"ROI_{roi_id} for Camera ID {camera_id} deleted successfully."}
+        else:
+            raise HTTPException(status_code=404, detail="Camera or ROI not found.")
+    
+    except HTTPException as http_exc:
+        # Reraise HTTP exceptions such as 404 for Camera/ROI not found
+        raise http_exc
+    
+    except Exception as e:
+        # Catch any other unexpected exceptions
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+
+
+
+
+
 
 @app.get("/camera_video_view")
 async def camera_video_view(id: int, db: Session = Depends(get_db)):
@@ -626,6 +653,8 @@ async def camera_video_view(id: int, db: Session = Depends(get_db)):
     
     # Stream the video frames
     return StreamingResponse(stream_video_frames(video_path), media_type="multipart/x-mixed-replace; boundary=frame")
+
+
 
 ################################ ACCOUNT ######################################
 
