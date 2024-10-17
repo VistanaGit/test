@@ -804,16 +804,8 @@ def camera_details_for_edit(db: Session, id: int):
                 "gender_detect_status": camera.gender_detect_status,
                 "person_counting_status": camera.person_counting_status,
                 "time_duration_calculation_status": camera.time_duration_calculation_status
-            }
-            
-            # Add ROIs only if they are not None or empty
-            if camera.ROI_1:
-                camera_details["ROI_1"] = camera.ROI_1
-            if camera.ROI_2:
-                camera_details["ROI_2"] = camera.ROI_2
-            if camera.ROI_3:
-                camera_details["ROI_3"] = camera.ROI_3
-            
+            }            
+                      
             return camera_details
         else:
             return None
@@ -1125,6 +1117,3 @@ def user_edit_save(
     except Exception as e:
         db.rollback()  # Rollback in case of any error
         raise HTTPException(status_code=500, detail=f"An error occurred while updating user: {str(e)}")
-
-
-
