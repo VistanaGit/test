@@ -20,7 +20,6 @@ import platform  # For hardware specs
 import GPUtil  # For GPU usage and specs (needs 'gputil' library)
 from io import BytesIO
 
-
 # Set up logging configuration
 logging.basicConfig(level=logging.INFO)
 
@@ -870,40 +869,96 @@ def camera_edit_save(
     finally:
         db.close()
 
+#################################### ROIS ###########################################
 
-
-def delete_selected_roi(db: Session, camera_id: int, roi_id: int):
+## List ROIs function for the selected camera
+def list_rois_for_camera(db: Session, camera_id: int):
     try:
-        # Fetch the camera by its ID
+        # Fetch the camera and its ROIs
         camera = db.query(Camera).filter(Camera.id == camera_id).first()
-
-        if not camera:
-            return False  # Camera not found
-
-        # Map ROI_ID to the actual column name
-        roi_field = None
-        if roi_id == 1:
-            roi_field = 'ROI_1'
-        elif roi_id == 2:
-            roi_field = 'ROI_2'
-        elif roi_id == 3:
-            roi_field = 'ROI_3'
         
-        if roi_field:
-            # Set the selected ROI field to None
-            setattr(camera, roi_field, None)
-            db.commit()
-            return True
-        else:
-            return False  # ROI_ID is invalid or out of range
+        if not camera:
+            raise HTTPException(status_code=404, detail=f"Camera with id={camera_id} not found.")
+        
+        # Fetch ROIs linked to the camera
+        rois = db.query(ROI).filter(ROI.camera_id == camera_id).all()
+
+        if not rois:
+            return []
+
+   
+        # Return list of ROIs
+        return [
+            {
+                "roi_id": roi.roi_id,
+                "roi_name": roi.roi_name,  # Include roi_name in the return
+                "roi_coor": roi.roi_coor,
+                "roi_desc": roi.roi_desc
+            } for roi in rois
+        ]
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        raise HTTPException(status_code=500, detail="Error fetching ROIs.")
+
+
+## Delete ROI function
+def delete_roi_for_camera(db: Session, camera_id: int, roi_id: int):
+    try:
+        # Fetch the camera and ROI
+        roi = db.query(ROI).filter(ROI.camera_id == camera_id, ROI.roi_id == roi_id).first()
+        
+        if not roi:
+            raise HTTPException(status_code=404, detail=f"ROI with id={roi_id} for Camera id={camera_id} not found.")
+        
+        # Delete the ROI
+        db.delete(roi)
+        db.commit()
+
+        return True
+
     except Exception as e:
         db.rollback()
         print(f"An error occurred: {e}")
-        return False
+        raise HTTPException(status_code=500, detail="Error deleting ROI.")
 
 
 
 
+# ROI Edit Function
+def roi_edit_save(
+    db: Session, 
+    camera_id: int,  # ID of the camera to update
+    roi_id: int,  # ID of the ROI to update
+    roi_name: str,  # Name of the ROI
+    roi_coor: str,  # Coordinates of the ROI
+    roi_desc: Optional[str]  # Optional description of the ROI
+):
+    try:
+        # Fetch the existing ROI record for the given camera_id and roi_id
+        roi = db.query(ROI).filter(ROI.camera_id == camera_id, ROI.roi_id == roi_id).first()
+
+        if not roi:
+            raise ValueError(f"ROI with id={roi_id} for Camera ID {camera_id} not found.")
+
+        # Update the ROI details
+        roi.roi_name = roi_name  # Update ROI name
+        roi.roi_coor = roi_coor  # Update ROI coordinates
+        roi.roi_desc = roi_desc  # Update optional description (if provided)
+
+        # Commit the changes to the database
+        db.commit()
+        print(f"ROI with id={roi_id} for Camera ID {camera_id} updated successfully.")
+
+    except ValueError as ve:
+        print(f"Validation Error: {ve}")
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"An error occurred while updating the ROI: {e}")
+        raise  # Re-raise the exception for further handling
+    finally:
+        db.close()
 
 
 ################################# ACCOUNT  ########################################
@@ -1070,4 +1125,6 @@ def user_edit_save(
     except Exception as e:
         db.rollback()  # Rollback in case of any error
         raise HTTPException(status_code=500, detail=f"An error occurred while updating user: {str(e)}")
+
+
 
