@@ -1,6 +1,6 @@
 import logging
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Float, inspect
-from sqlalchemy.orm import Session
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Float, inspect, ForeignKey
+from sqlalchemy.orm import Session, relationship
 from db_configure import engine, Base  # Import engine and Base from db_configure
 from enum import Enum
 
@@ -58,20 +58,24 @@ class Camera(Base):
     cam_last_date_modified = Column(DateTime)
     cam_desc = Column(Text)
 
-    # New ROI columns
-    ROI_1 = Column(String, nullable=True)  # ROI_1 column to store ROI data (e.g., coordinates)
-    ROI_2 = Column(String, nullable=True)  # ROI_2 column
-    ROI_3 = Column(String, nullable=True)  # ROI_3 column
+    # Relationship with ROI table
+    rois = relationship("ROI", back_populates="camera", cascade="all, delete-orphan")
 
-# Define the ROI Model
+
 class ROI(Base):
     __tablename__ = 'tbl_rois'
 
     roi_id = Column(Integer, primary_key=True)
-    counter_roi_id = Column(Integer)
-    roi_coor = Column(String)
-    roi_desc = Column(Text)
+    roi_name = Column(String(50), nullable=True) 
+    roi_coor = Column(String, nullable=False)  # Coordinates for the ROI (e.g., JSON string or coordinate format)
+    roi_desc = Column(Text)  # Description of the ROI (optional)
 
+    # Foreign key to Camera table
+    camera_id = Column(Integer, ForeignKey('tbl_cameras.id'), nullable=False)
+
+    # Relationship with Camera table
+    camera = relationship("Camera", back_populates="rois")
+    
 # Define the Counter Model
 class Counter(Base):
     __tablename__ = 'tbl_counters'
