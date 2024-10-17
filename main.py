@@ -42,7 +42,9 @@ from service_functions import (
     delete_camera_by_id,
     camera_details_for_edit,
     camera_edit_save,
-    delete_selected_roi,
+    list_rois_for_camera,
+    delete_roi_for_camera,
+    roi_edit_save,
     get_all_users,
     insert_account,
     delete_user,
@@ -610,35 +612,6 @@ async def camera_edit_save_service(
 
 
 
-@app.delete("/delete_roi/{camera_id}/{roi_id}")
-def delete_roi(camera_id: int, roi_id: int, db: Session = Depends(get_db),
-               token: str = Depends(oauth2_scheme)):
-    try:
-        # Verify token
-        token_data = verify_token(token)
-        
-        # Delete the selected ROI
-        result = delete_selected_roi(db, camera_id, roi_id)
-        
-        if result:
-            return {"message": f"ROI_{roi_id} for Camera ID {camera_id} deleted successfully."}
-        else:
-            raise HTTPException(status_code=404, detail="Camera or ROI not found.")
-    
-    except HTTPException as http_exc:
-        # Reraise HTTP exceptions such as 404 for Camera/ROI not found
-        raise http_exc
-    
-    except Exception as e:
-        # Catch any other unexpected exceptions
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-
-
-
-
-
-
-
 
 @app.get("/camera_video_view")
 async def camera_video_view(id: int, db: Session = Depends(get_db)):
@@ -654,6 +627,92 @@ async def camera_video_view(id: int, db: Session = Depends(get_db)):
     # Stream the video frames
     return StreamingResponse(stream_video_frames(video_path), media_type="multipart/x-mixed-replace; boundary=frame")
 
+
+
+
+#################################### ROIS ###########################################
+
+## List of ROIs service
+@app.get("/rois/{camera_id}")
+def list_rois(camera_id: int, db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)):
+    try:
+        # Verify token
+        token_data = verify_token(token)
+        
+        # Fetch all ROIs for the selected camera
+        rois = list_rois_for_camera(db, camera_id)
+        
+        if rois:
+            return {"camera_id": camera_id, "rois": rois}
+        else:
+            raise HTTPException(status_code=404, detail=f"No ROIs found for Camera ID {camera_id}.")
+    
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+
+## Delete ROI service
+@app.delete("/rois/{camera_id}/{roi_id}")
+def delete_roi(camera_id: int, roi_id: int, db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)):
+    try:
+        # Verify token
+        token_data = verify_token(token)
+
+        # Delete the selected ROI
+        result = delete_roi_for_camera(db, camera_id, roi_id)
+        
+        if result:
+            return {"message": f"ROI with ID {roi_id} for Camera ID {camera_id} deleted successfully."}
+        else:
+            raise HTTPException(status_code=404, detail="Camera or ROI not found.")
+    
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+
+# ROI Update Schema
+class ROIEditData(BaseModel):
+    roi_name: str
+    roi_coor: str  # Coordinates for the ROI
+    roi_desc: Optional[str] = None  # Optional description
+
+
+# ROI Edit Endpoint
+
+# ROI Edit Endpoint
+@app.patch("/rois/{camera_id}/{roi_id}")
+async def roi_edit_service(
+    camera_id: int,  # Accept camera_id as a path parameter
+    roi_id: int,  # Accept roi_id as a path parameter
+    roi_data: ROIEditData,  # Accept the ROI details as a request body
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
+    try:
+        # Verify token
+        token_data = verify_token(token)
+
+        # Call the roi_edit_save function from service_functions
+        roi_edit_save(
+            db=db,
+            camera_id=camera_id,
+            roi_id=roi_id,
+            roi_name=roi_data.roi_name,
+            roi_coor=roi_data.roi_coor,
+            roi_desc=roi_data.roi_desc  # Pass optional description
+        )
+        return {"message": f"ROI with ID {roi_id} for Camera ID {camera_id} updated successfully."}
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 ################################ ACCOUNT ######################################
