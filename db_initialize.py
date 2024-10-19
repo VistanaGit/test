@@ -69,7 +69,7 @@ class ROI(Base):
     __tablename__ = 'tbl_rois'
 
     roi_id = Column(Integer, primary_key=True)
-    roi_name = Column(String(50), nullable=True) 
+    roi_name = Column(String(50), nullable=False, unique=True)
     roi_coor = Column(String, nullable=False)  # Coordinates for the ROI (e.g., JSON string or coordinate format)
     roi_desc = Column(Text)  # Description of the ROI (optional)
 
