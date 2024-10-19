@@ -47,11 +47,11 @@ class Camera(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     cam_name = Column(String)
-    cam_ip = Column(String)
-    cam_mac = Column(String)
+    cam_ip = Column(String, unique=True)  # Ensuring IP is unique
+    cam_mac = Column(String, unique=True)  # Ensuring MAC Address is unique
     cam_enable = Column(Boolean)
-    cam_rtsp = Column(String)
-    age_detect_status = Column(Boolean, default=True)  # Default value can be set to True
+    cam_rtsp = Column(String)  #
+    age_detect_status = Column(Boolean, default=True)  # Default value set to True
     gender_detect_status = Column(Boolean, default=True)
     person_counting_status = Column(Boolean, default=True)
     time_duration_calculation_status = Column(Boolean, default=True)
