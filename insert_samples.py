@@ -75,13 +75,15 @@ def insert_accounts():
 def insert_cameras():
     session = SessionLocal()
     try:
+        # Sample cameras with various details, including detect status fields
         cameras = [
-            Camera(cam_name='Camera 1', cam_ip='192.168.1.10', cam_mac='00:0a:95:9d:68:16', cam_enable=True, cam_rtsp='rtsp://camera1', cam_desc='Front Door Camera', cam_last_date_modified=datetime(2024, 10, 1, 8, 0, 0), age_detect_status=False, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True),
-            Camera(cam_name='Camera 2', cam_ip='192.168.1.11', cam_mac='00:0a:95:9d:68:17', cam_enable=True, cam_rtsp='rtsp://camera2', cam_desc='Back Door Camera', cam_last_date_modified=datetime(2024, 10, 2, 10, 30, 0), age_detect_status=True, gender_detect_status=False, person_counting_status=False, time_duration_calculation_status=True),
-            Camera(cam_name='Camera 3', cam_ip='192.168.1.12', cam_mac='00:0a:95:9d:68:18', cam_enable=False, cam_rtsp='rtsp://camera3', cam_desc='Parking Lot Camera', cam_last_date_modified=datetime(2024, 10, 3, 12, 15, 0), age_detect_status=True, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True),
-            Camera(cam_name='Camera 4', cam_ip='192.168.1.13', cam_mac='00:0a:95:9d:68:19', cam_enable=True, cam_rtsp='rtsp://camera4', cam_desc='Lobby Camera', cam_last_date_modified=datetime(2024, 10, 4, 14, 45, 0), age_detect_status=True, gender_detect_status=False, person_counting_status=True, time_duration_calculation_status=False),
-            Camera(cam_name='Camera 5', cam_ip='192.168.1.14', cam_mac='00:0a:95:9d:68:20', cam_enable=False, cam_rtsp='rtsp://camera5', cam_desc='Garage Camera', cam_last_date_modified=datetime(2024, 10, 5, 16, 0, 0), age_detect_status=False, gender_detect_status=True, person_counting_status=False, time_duration_calculation_status=True)
+            Camera(cam_name="Camera 1", cam_ip="192.168.0.101", cam_mac="AA:BB:CC:DD:EE:01", cam_enable=True, cam_rtsp="rtsp://camera1", cam_last_date_modified=datetime.now(), cam_desc="Front door camera", dashboard_display=True, age_detect_status=True, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True),
+            Camera(cam_name="Camera 2", cam_ip="192.168.0.102", cam_mac="AA:BB:CC:DD:EE:02", cam_enable=True, cam_rtsp="rtsp://camera2", cam_last_date_modified=datetime.now(), cam_desc="Backyard camera", dashboard_display=False, age_detect_status=False, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True),
+            Camera(cam_name="Camera 3", cam_ip="192.168.0.103", cam_mac="AA:BB:CC:DD:EE:03", cam_enable=True, cam_rtsp="rtsp://camera3", cam_last_date_modified=datetime.now(), cam_desc="Garage camera", dashboard_display=True, age_detect_status=True, gender_detect_status=False, person_counting_status=True, time_duration_calculation_status=True),
+            Camera(cam_name="Camera 4", cam_ip="192.168.0.104", cam_mac="AA:BB:CC:DD:EE:04", cam_enable=True, cam_rtsp="rtsp://camera4", cam_last_date_modified=datetime.now(), cam_desc="Living room camera", dashboard_display=False, age_detect_status=True, gender_detect_status=True, person_counting_status=False, time_duration_calculation_status=True),
+            Camera(cam_name="Camera 5", cam_ip="192.168.0.105", cam_mac="AA:BB:CC:DD:EE:05", cam_enable=True, cam_rtsp="rtsp://camera5", cam_last_date_modified=datetime.now(), cam_desc="Patio camera", dashboard_display=True, age_detect_status=True, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=False)
         ]
+        
         session.add_all(cameras)
         session.commit()
         print("Cameras inserted successfully!")
@@ -90,6 +92,9 @@ def insert_cameras():
         print(f"An error occurred: {e}")
     finally:
         session.close()
+
+
+
 
 
 def insert_rois():
@@ -108,7 +113,8 @@ def insert_rois():
                 ROI(roi_name="Region 2 for Camera 3", roi_coor="[60,70,80,90]", roi_desc="Description for Region 2", camera_id=cameras[2].id),
                 ROI(roi_name="Region 1 for Camera 4", roi_coor="[25,35,45,55]", roi_desc="Description for Region 1", camera_id=cameras[3].id),
                 ROI(roi_name="Region 2 for Camera 4", roi_coor="[65,75,85,95]", roi_desc="Description for Region 2", camera_id=cameras[3].id),
-                ROI(roi_name="Region 1 for Camera 5", roi_coor="[30,40,50,60]", roi_desc="Description for Region 1", camera_id=cameras[4].id)
+                ROI(roi_name="Region 1 for Camera 5", roi_coor="[30,40,50,60]", roi_desc="Description for Region 1", camera_id=cameras[4].id),
+                ROI(roi_name="Region 2 for Camera 5", roi_coor="[70,80,90,100]", roi_desc="Description for Region 2", camera_id=cameras[4].id)
             ]
             session.add_all(rois)
             session.commit()
@@ -120,6 +126,7 @@ def insert_rois():
         print(f"An error occurred: {e}")
     finally:
         session.close()
+
 
 
 
