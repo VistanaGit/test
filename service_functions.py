@@ -651,6 +651,7 @@ def get_all_cameras(db: Session):
                 "gender_detect_status": camera.gender_detect_status,
                 "person_counting_status": camera.person_counting_status,
                 "time_duration_calculation_status": camera.time_duration_calculation_status,
+                "dashboard_display": camera.dashboard_display,
                 "cam_last_date_modified": camera.cam_last_date_modified,
                 "cam_desc": camera.cam_desc
             }
