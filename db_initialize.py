@@ -57,7 +57,10 @@ class Camera(Base):
     time_duration_calculation_status = Column(Boolean, default=True)
     cam_last_date_modified = Column(DateTime)
     cam_desc = Column(Text)
-
+    
+    # New column for camera video display with default value False in dashboard
+    dashboard_display = Column(Boolean, default=False)  
+    
     # Relationship with ROI table
     rois = relationship("ROI", back_populates="camera", cascade="all, delete-orphan")
 
