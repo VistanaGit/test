@@ -876,14 +876,13 @@ def list_rois_for_camera(db: Session, camera_id: int):
         rois = db.query(ROI).filter(ROI.camera_id == camera_id).all()
 
         if not rois:
-            return []
+            return None  # Return 'None' if no ROIs found for the camera
 
-   
         # Return list of ROIs
         return [
             {
                 "roi_id": roi.roi_id,
-                "roi_name": roi.roi_name,  # Include roi_name in the return
+                "roi_name": roi.roi_name,
                 "roi_coor": roi.roi_coor,
                 "roi_desc": roi.roi_desc
             } for roi in rois
