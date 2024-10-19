@@ -171,15 +171,7 @@ def get_counter_list_endpoint(db: Session = Depends(get_db), token: str = Depend
         logging.error(f"Error fetching counter list: {e}")  # Log the error for debugging
         return {"message": "Error fetching counter list"}  # Return a simple message
 
-@app.get("/roi_list")
-def get_roi_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
-    token_data = verify_token(token)  # Verifying the token
-    try:
-        rois = get_roi_list(db)  # Fetch ROI list from the database
-        return rois
-    except Exception as e:
-        logging.error(f"Error fetching ROI list: {e}")  # Log the error for debugging
-        return {"message": "Error fetching ROI list"}  # Return a simple message
+
 
 @app.get("/visitor_list")
 def get_visitor_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
@@ -474,9 +466,12 @@ async def report_details_of_selected_counter_route(
 ################################ CAMERAS ######################################
 
 @app.get("/cameras")
-def get_camera_list_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
-    
-    token_data = verify_token(token)  # Verifying the token
+def get_camera_list_endpoint(db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
+    # Verifying the token
+    token_data = verify_token(token)  
+
     try:
         cameras = get_all_cameras(db)  # Fetch camera list from the database
         return cameras
@@ -652,6 +647,29 @@ def list_rois(camera_id: int, db: Session = Depends(get_db),
         raise http_exc
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+
+
+@app.get("/rois/{camera_id}")
+def list_rois(camera_id: int, db: Session = Depends(get_db)):
+    try:
+        # Verify token (assuming token verification is implemented)
+        # token_data = verify_token(token)
+        
+        # Fetch all ROIs for the selected camera
+        rois = list_rois_for_camera(db, camera_id)
+        
+        if rois is not None:
+            return {"camera_id": camera_id, "rois": rois}
+        else:
+            return {"camera_id": camera_id, "rois": None}  # Return 'None' if no ROIs found
+    
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
 
 
 
