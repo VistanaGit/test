@@ -23,8 +23,7 @@ from service_functions import (
     get_activity_list,
     get_notification_list,
     get_total_visitors,
-    least_visited_counter,
-    most_visited_counter,
+    least_visited_counter,    
     age_monitoring,
     gender_monitoring,
     get_system_info,
@@ -60,7 +59,10 @@ from service_functions import (
     get_latest_disabled_camera,
     get_db,
     verify_token,
-    TokenData
+    TokenData,
+    most_visited_counter_no_slot_time_for_latest_date_func,
+    most_visited_counter_for_each_slot_time_in_latest_date_func,
+    most_visited_counter_for_latest_date_slot_time_func,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -255,16 +257,44 @@ def least_visited_counter_endpoint(db: Session = Depends(get_db), token: str = D
         logging.error(f"Error fetching least visited counter: {e}")
         return {"message": "Error fetching least visited counter"}
 
-# New endpoints for most visited counters
-@app.get("/most_visited_counter")
-def most_visited_counter_endpoint(db: Session = Depends(get_db)):
-    # token_data = verify_token(token)  # Verifying the token
+# New endpoints for retrieving of most visited counter with no slot time and only for latest date (today) - on home dashboard
+@app.get("/most_visited_counter_no_slot_time_for_latest_date")
+def most_visited_counter_no_slot_time_for_latest_date_endpoint(db: Session = Depends(get_db)):
+    #token_data = verify_token(token)  # Verifying the token
     try:
-        result = most_visited_counter(db)
+        result = most_visited_counter_no_slot_time_for_latest_date_func(db)
         return result
     except Exception as e:
         logging.error(f"Error fetching most visited counter: {e}")
         return {"message": "Error fetching most visited counter"}
+
+
+
+
+# New endpoints for retrieving of most visited counter for only latest date and covering slot time
+@app.get("/most_visited_counter_for_each_slot_time_in_latest_date")
+def most_visited_counter_for_each_slot_time_in_latest_date_endpoint(db: Session = Depends(get_db)):
+    #token_data = verify_token(token)  # Verifying the token
+    try:
+        result = most_visited_counter_for_each_slot_time_in_latest_date_func(db)
+        return result
+    except Exception as e:
+        logging.error(f"Error fetching most visited counter: {e}")
+        return {"message": "Error fetching most visited counter"}
+
+
+
+# New endpoints for most visited counters
+@app.get("/most_visited_counter_for_latest_date_slot_time")
+def most_visited_counter_for_latest_date_slot_time_endpoint(db: Session = Depends(get_db)):
+    #token_data = verify_token(token)  # Verifying the token
+    try:
+        result = most_visited_counter_for_latest_date_slot_time_func(db)
+        return result
+    except Exception as e:
+        logging.error(f"Error fetching most visited counter: {e}")
+        return {"message": "Error fetching most visited counter"}
+
 
 
 @app.post("/age_monitoring")
@@ -317,7 +347,7 @@ def latest_disabled_camera(db: Session = Depends(get_db), token: str = Depends(o
 
 ################################# REPORT PAGE ########################################
 
-@app.get("/report_visitor_table/")  # Change to GET method
+@app.get("/report_visitor_table/") 
 async def report_visitor_table(
     start_date: str,
     end_date: str,
@@ -491,6 +521,7 @@ class CameraData(BaseModel):
     cam_enable: bool
     cam_rtsp: str
     cam_desc: str
+    exhibition_name: str
 
 @app.post("/cameras")
 async def insert_camera_service(
@@ -510,7 +541,8 @@ async def insert_camera_service(
             cam_mac=camera_data.cam_mac,
             cam_enable=camera_data.cam_enable,
             cam_rtsp=camera_data.cam_rtsp,
-            cam_desc=camera_data.cam_desc
+            cam_desc=camera_data.cam_desc,
+            exhibition_name=camera_data.exhibition_name
         )
 
         # Return a success message
@@ -570,11 +602,12 @@ class CameraEditData(BaseModel):
     cam_mac: str
     cam_enable: bool
     cam_rtsp: str
+    exhibition_name: str
     age_detect_status: bool
     gender_detect_status: bool
     person_counting_status: bool
     time_duration_calculation_status: bool
-    cam_desc: Optional[str] = None  # Optional description
+    cam_desc: Optional[str] = None
 
 #@app.put("/cameras/{id}")  # Update the endpoint to /cameras/{id}
 @app.patch("/cameras/{id}")  # Optionally allow PATCH as well
@@ -597,6 +630,7 @@ async def camera_edit_save_service(
             cam_mac=camera_data.cam_mac,
             cam_enable=camera_data.cam_enable,
             cam_rtsp=camera_data.cam_rtsp,
+            exhibition_name=camera_data.exhibition_name,
             age_detect_status=camera_data.age_detect_status,
             gender_detect_status=camera_data.gender_detect_status,
             person_counting_status=camera_data.person_counting_status,
