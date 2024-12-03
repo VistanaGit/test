@@ -7,14 +7,14 @@ import time
 import logging
 from typing import Optional
 from starlette.concurrency import run_in_threadpool  # <-- Import the correct module
-
+import subprocess
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
-from service_functions import (
+from service_functions_4 import (
     recover_password,
     login,
     get_counter_list,
@@ -50,6 +50,10 @@ from service_functions import (
     delete_user,
     user_details_for_edit,
     user_edit_save,
+    add_exhibition,
+    list_exhibitions,
+    edit_exhibition,
+    delete_exhibition,
     PasswordRecoveryData,
     LoginData,
     get_logged_in_user,
@@ -58,7 +62,6 @@ from service_functions import (
     verify_token,
     TokenData
 )
-
 
 logging.basicConfig(level=logging.INFO)
 
@@ -231,8 +234,8 @@ def logged_in_user_endpoint(token: str = Depends(oauth2_scheme), db: Session = D
 
 
 @app.get("/total_visitors")
-async def total_visitors_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):    
-    token_data = verify_token(token)  # Verifying the token
+async def total_visitors_endpoint(db: Session = Depends(get_db)):    
+    #token_data = verify_token(token)  # Verifying the token
     try:
         total = get_total_visitors(db)
         return {"total_visitors": total}
@@ -254,8 +257,8 @@ def least_visited_counter_endpoint(db: Session = Depends(get_db), token: str = D
 
 # New endpoints for most visited counters
 @app.get("/most_visited_counter")
-def most_visited_counter_endpoint(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
-    token_data = verify_token(token)  # Verifying the token
+def most_visited_counter_endpoint(db: Session = Depends(get_db)):
+    # token_data = verify_token(token)  # Verifying the token
     try:
         result = most_visited_counter(db)
         return result
@@ -650,29 +653,6 @@ def list_rois(camera_id: int, db: Session = Depends(get_db),
 
 
 
-
-@app.get("/rois/{camera_id}")
-def list_rois(camera_id: int, db: Session = Depends(get_db)):
-    try:
-        # Verify token (assuming token verification is implemented)
-        # token_data = verify_token(token)
-        
-        # Fetch all ROIs for the selected camera
-        rois = list_rois_for_camera(db, camera_id)
-        
-        if rois is not None:
-            return {"camera_id": camera_id, "rois": rois}
-        else:
-            return {"camera_id": camera_id, "rois": None}  # Return 'None' if no ROIs found
-    
-    except HTTPException as http_exc:
-        raise http_exc
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-
-
-
-
 ## Delete ROI service
 @app.delete("/rois/{camera_id}/{roi_id}")
 def delete_roi(camera_id: int, roi_id: int, db: Session = Depends(get_db),
@@ -704,8 +684,6 @@ class ROIEditData(BaseModel):
 
 
 # ROI Edit Endpoint
-
-# ROI Edit Endpoint
 @app.patch("/rois/{camera_id}/{roi_id}")
 async def roi_edit_service(
     camera_id: int,  # Accept camera_id as a path parameter
@@ -731,6 +709,17 @@ async def roi_edit_service(
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+## add camera
+@app.post("/rois/{camera_id}")
+async def insert_roi(camera_id: int):
+    try:
+        # Run the Python script with the specified camera ID
+        result = subprocess.run(['python3', 'roi_define/roi_definition.py', '--video', str(camera_id)], capture_output=True, text=True)
+        return {"output": result.stdout}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 ################################ ACCOUNT ######################################
@@ -885,3 +874,54 @@ async def user_edit_save_service(
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred while processing the request: {str(e)}")
+
+
+
+
+# Add an exhibition
+@app.post("/exhibitions/")
+async def add_exhibition_service(
+    name: str,
+    description: str,
+    start_date: str,
+    end_date: str,
+    db: Session = Depends(get_db),
+):
+    try:
+        new_exhibition = add_exhibition(db, name, description, start_date, end_date)
+        return {"message": "Exhibition added successfully", "exhibition": new_exhibition}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# List all exhibitions
+@app.get("/exhibitions/")
+async def list_exhibitions_service(db: Session = Depends(get_db)):
+    exhibitions = list_exhibitions(db)
+    if not exhibitions:
+        raise HTTPException(status_code=404, detail="No exhibitions found")
+    return {"exhibitions": exhibitions}
+
+# Edit an exhibition
+@app.put("/exhibitions/{exhibition_id}")
+async def edit_exhibition_service(
+    exhibition_id: int,
+    name: str,
+    description: str,
+    start_date: str,
+    end_date: str,
+    db: Session = Depends(get_db),
+):
+    updated_exhibition = edit_exhibition(db, exhibition_id, name, description, start_date, end_date)
+    if updated_exhibition:
+        return {"message": "Exhibition updated successfully", "exhibition": updated_exhibition}
+    else:
+        raise HTTPException(status_code=404, detail="Exhibition not found")
+
+# Delete an exhibition
+@app.delete("/exhibitions/{exhibition_id}")
+async def delete_exhibition_service(exhibition_id: int, db: Session = Depends(get_db)):
+    success = delete_exhibition(db, exhibition_id)
+    if success:
+        return {"message": "Exhibition deleted successfully"}
+    else:
+        raise HTTPException(status_code=404, detail="Exhibition not found")
