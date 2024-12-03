@@ -14,7 +14,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
-from service_functions_4 import (
+from service_functions import (
     recover_password,
     login,
     get_counter_list,
