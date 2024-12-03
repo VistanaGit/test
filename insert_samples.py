@@ -21,7 +21,7 @@ def insert_accounts():
             Account(
                 user_name='reza_shokouhi', 
                 password='password456', 
-                email='reza@example.com', 
+                email='vistana.lampada@gmail.com', 
                 first_name='Reza', 
                 last_name='Shokouhi', 
                 tel='09234567890', 
@@ -92,7 +92,6 @@ def insert_cameras():
         print(f"An error occurred: {e}")
     finally:
         session.close()
-
 
 
 
@@ -177,6 +176,8 @@ def insert_visitors():
         person_id = person_id_start
         for counter_id, count in counter_distribution.items():
             for _ in range(count):
+                current_datetime = datetime.now().replace(microsecond=0) + timedelta(hours=person_id)
+
                 visitors.append(
                     Visitor(
                         person_id=person_id,
@@ -186,7 +187,7 @@ def insert_visitors():
                         person_duration_in_roi=(person_id * 10) % 300 + 60,  # Random duration pattern
                         person_age_group=['young', 'adult', 'teenager', 'senior'][person_id % 4],
                         person_gender=['male', 'female'][person_id % 2],  # Alternating male/female
-                        current_datetime=datetime.now() + timedelta(hours=person_id)
+                        current_datetime=current_datetime
                     )
                 )
                 person_id += 1
