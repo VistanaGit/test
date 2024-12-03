@@ -1,6 +1,7 @@
 from db_configure import SessionLocal
 from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
 from datetime import datetime, timedelta
+import random
 
 # Insert accounts data
 def insert_accounts():
@@ -77,11 +78,11 @@ def insert_cameras():
     try:
         # Sample cameras with various details, including detect status fields
         cameras = [
-            Camera(cam_name="Camera 1", cam_ip="192.168.0.101", cam_mac="AA:BB:CC:DD:EE:01", cam_enable=True, cam_rtsp="rtsp://camera1", cam_last_date_modified=datetime.now(), cam_desc="Front door camera", dashboard_display=True, age_detect_status=True, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True),
-            Camera(cam_name="Camera 2", cam_ip="192.168.0.102", cam_mac="AA:BB:CC:DD:EE:02", cam_enable=True, cam_rtsp="rtsp://camera2", cam_last_date_modified=datetime.now(), cam_desc="Backyard camera", dashboard_display=False, age_detect_status=False, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True),
-            Camera(cam_name="Camera 3", cam_ip="192.168.0.103", cam_mac="AA:BB:CC:DD:EE:03", cam_enable=True, cam_rtsp="rtsp://camera3", cam_last_date_modified=datetime.now(), cam_desc="Garage camera", dashboard_display=False, age_detect_status=True, gender_detect_status=False, person_counting_status=True, time_duration_calculation_status=True),
-            Camera(cam_name="Camera 4", cam_ip="192.168.0.104", cam_mac="AA:BB:CC:DD:EE:04", cam_enable=True, cam_rtsp="rtsp://camera4", cam_last_date_modified=datetime.now(), cam_desc="Living room camera", dashboard_display=False, age_detect_status=True, gender_detect_status=True, person_counting_status=False, time_duration_calculation_status=True),
-            Camera(cam_name="Camera 5", cam_ip="192.168.0.105", cam_mac="AA:BB:CC:DD:EE:05", cam_enable=True, cam_rtsp="rtsp://camera5", cam_last_date_modified=datetime.now(), cam_desc="Patio camera", dashboard_display=False, age_detect_status=True, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=False)
+            Camera(cam_name="Camera 1", cam_ip="192.168.0.101", cam_mac="AA:BB:CC:DD:EE:01", cam_enable=True, cam_rtsp="rtsp://camera1", cam_last_date_modified=datetime.now(), cam_desc="Front door camera", dashboard_display=True, age_detect_status=True, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True, exhibition_name="ELECOMP Expo 2024"),
+            Camera(cam_name="Camera 2", cam_ip="192.168.0.102", cam_mac="AA:BB:CC:DD:EE:02", cam_enable=True, cam_rtsp="rtsp://camera2", cam_last_date_modified=datetime.now(), cam_desc="Backyard camera", dashboard_display=False, age_detect_status=False, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=True, exhibition_name="ELECOMP Expo 2024"),
+            Camera(cam_name="Camera 3", cam_ip="192.168.0.103", cam_mac="AA:BB:CC:DD:EE:03", cam_enable=True, cam_rtsp="rtsp://camera3", cam_last_date_modified=datetime.now(), cam_desc="Garage camera", dashboard_display=False, age_detect_status=True, gender_detect_status=False, person_counting_status=True, time_duration_calculation_status=True, exhibition_name="ELECOMP Expo 2024"),
+            Camera(cam_name="Camera 4", cam_ip="192.168.0.104", cam_mac="AA:BB:CC:DD:EE:04", cam_enable=True, cam_rtsp="rtsp://camera4", cam_last_date_modified=datetime.now(), cam_desc="Living room camera", dashboard_display=False, age_detect_status=True, gender_detect_status=True, person_counting_status=False, time_duration_calculation_status=True, exhibition_name="ELECOMP Expo 2024"),
+            Camera(cam_name="Camera 5", cam_ip="192.168.0.105", cam_mac="AA:BB:CC:DD:EE:05", cam_enable=True, cam_rtsp="rtsp://camera5", cam_last_date_modified=datetime.now(), cam_desc="Patio camera", dashboard_display=False, age_detect_status=True, gender_detect_status=True, person_counting_status=True, time_duration_calculation_status=False, exhibition_name="ELECOMP Expo 2024")
         ]
         
         session.add_all(cameras)
@@ -92,6 +93,7 @@ def insert_cameras():
         print(f"An error occurred: {e}")
     finally:
         session.close()
+
 
 
 
@@ -176,7 +178,16 @@ def insert_visitors():
         person_id = person_id_start
         for counter_id, count in counter_distribution.items():
             for _ in range(count):
-                current_datetime = datetime.now().replace(microsecond=0) + timedelta(hours=person_id)
+                # Rotate between today's date, 1 day before, and 2 days before
+                base_date = datetime.now().replace(microsecond=0) - timedelta(days=person_id % 3)
+                
+                # Generate a random time between 7 AM and 11 PM
+                random_hour = random.randint(7, 22)  # 7 AM to 10 PM
+                random_minute = random.randint(0, 59)
+                random_second = random.randint(0, 59)
+                
+                # Combine base date with random time
+                current_datetime = base_date.replace(hour=random_hour, minute=random_minute, second=random_second)
 
                 visitors.append(
                     Visitor(
@@ -200,6 +211,9 @@ def insert_visitors():
         print(f"An error occurred while inserting visitors data: {e}")
     finally:
         session.close()
+
+
+
 
 
 
