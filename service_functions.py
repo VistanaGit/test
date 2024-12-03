@@ -185,136 +185,92 @@ def get_total_visitors(db: Session):
         "average_duration": average_duration
     }
 
-# def most_visited_counter_no_slot_time(db: Session):
-#     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    
-#     most_visited_result = (
-#         db.query(
-#             Visitor.counter_id,
-#             func.count(Visitor.person_id).label('visitor_count'),
-#             func.sum(Visitor.person_duration_in_roi).label('total_duration')
-#         )
-#         #  The filter to restrict the query to today's visits
-#         .filter(Visitor.current_datetime >= today_start)
-#         .group_by(Visitor.counter_id)
-#         .order_by(func.count(Visitor.person_id).desc())  # Most visited first
-#         .first()
-#     )
-    
-#     if most_visited_result:
-#         counter_id, visitor_count, total_duration = most_visited_result
-#         average_duration = round(total_duration / visitor_count, 2) if visitor_count > 0 else 0.00
-#         return {
-#             "counter_id": counter_id,
-#             "visitor_count": visitor_count,
-#             "average_duration": average_duration
-#         }
-    
-#     return {"message": "No visitors found today."}
+###################################################################################################
+###################### Most Visisted Counter Ideetifications Services #############################
+###################################################################################################
 
-# def most_visited_counter_list_all_slots_times(db: Session):
-#     # Define start and end time for the time slots (8 AM to 10 PM)
-#     start_time = datetime.now().replace(hour=8, minute=0, second=0, microsecond=0)
-#     end_time = datetime.now().replace(hour=22, minute=0, second=0, microsecond=0)
+def most_visited_counter_no_slot_time_for_latest_date_func(db: Session):
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     
-#     # Define time slot interval (30 minutes)
-#     time_slots = []
-#     while start_time < end_time:
-#         end_slot_time = start_time + timedelta(minutes=30)
-#         time_slots.append((start_time, end_slot_time))
-#         start_time = end_slot_time
+    most_visited_result = (
+        db.query(
+            Visitor.counter_id,
+            func.count(Visitor.person_id).label('visitor_count'),
+            func.sum(Visitor.person_duration_in_roi).label('total_duration')
+        )
+        #  The filter to restrict the query to today's visits
+        .filter(Visitor.current_datetime >= today_start)
+        .group_by(Visitor.counter_id)
+        .order_by(func.count(Visitor.person_id).desc())  # Most visited first
+        .first()
+    )
+    
+    if most_visited_result:
+        counter_id, visitor_count, total_duration = most_visited_result
+        average_duration = round(total_duration / visitor_count, 2) if visitor_count > 0 else 0.00
+        return {
+            "counter_id": counter_id,
+            "visitor_count": visitor_count,
+            "average_duration": average_duration
+        }
+    
+    return {"message": "No visitors found today."}
 
-#     # Prepare the result list for each time slot
-#     results = []
+
+
+def most_visited_counter_for_each_slot_time_in_latest_date_func(db: Session):
+    # Define start and end time for the time slots (8 AM to 10 PM)
+    start_time = datetime.now().replace(hour=8, minute=0, second=0, microsecond=0)
+    end_time = datetime.now().replace(hour=22, minute=0, second=0, microsecond=0)
     
-#     # Loop through each time slot and get the most visited counter
-#     for slot_start, slot_end in time_slots:
-#         most_visited_result = (
-#             db.query(
-#                 Visitor.counter_id,
-#                 func.count(Visitor.person_id).label('visitor_count'),
-#                 func.sum(Visitor.person_duration_in_roi).label('total_duration')
-#             )
-#             .filter(Visitor.current_datetime >= slot_start, Visitor.current_datetime < slot_end)
-#             .group_by(Visitor.counter_id)
-#             .order_by(func.count(Visitor.person_id).desc())  # Most visited first
-#             .first()
-#         )
+    # Define time slot interval (30 minutes)
+    time_slots = []
+    while start_time < end_time:
+        end_slot_time = start_time + timedelta(minutes=30)
+        time_slots.append((start_time, end_slot_time))
+        start_time = end_slot_time
+
+    # Prepare the result list for each time slot
+    results = []
+    
+    # Loop through each time slot and get the most visited counter
+    for slot_start, slot_end in time_slots:
+        most_visited_result = (
+            db.query(
+                Visitor.counter_id,
+                func.count(Visitor.person_id).label('visitor_count'),
+                func.sum(Visitor.person_duration_in_roi).label('total_duration'),
+                func.min(func.date(Visitor.current_datetime)).label('date')  # Extract the date
+            )
+            .filter(Visitor.current_datetime >= slot_start, Visitor.current_datetime < slot_end)
+            .group_by(Visitor.counter_id)
+            .order_by(func.count(Visitor.person_id).desc())  # Most visited first
+            .first()
+        )
         
-#         if most_visited_result:
-#             counter_id, visitor_count, total_duration = most_visited_result
-#             average_duration = round(total_duration / visitor_count, 2) if visitor_count > 0 else 0.00
-#             results.append({
-#                 "time_slot": f"{slot_start.strftime('%H:%M')}-{slot_end.strftime('%H:%M')}",
-#                 "counter_id": counter_id,
-#                 "visitor_count": visitor_count,
-#                 "average_duration": average_duration
-#             })
-#         else:
-#             results.append({
-#                 "time_slot": f"{slot_start.strftime('%H:%M')}-{slot_end.strftime('%H:%M')}",
-#                 "message": "No visitors"
-#             })
+        if most_visited_result:
+            counter_id, visitor_count, total_duration, visit_date = most_visited_result
+            average_duration = round(total_duration / visitor_count, 2) if visitor_count > 0 else 0.00
+            results.append({
+                "time_slot": f"{slot_start.strftime('%H:%M')}-{slot_end.strftime('%H:%M')}",
+                "counter_id": counter_id,
+                "visitor_count": visitor_count,
+                "average_duration": average_duration,
+                "visit_date": visit_date.strftime('%Y-%m-%d')  # Format the date
+            })
+        else:
+            results.append({
+                "time_slot": f"{slot_start.strftime('%H:%M')}-{slot_end.strftime('%H:%M')}",
+                "message": "No visitors"
+            })
     
-#     return results
+    return results
 
 
 
+# This function returns only max visited counter in latest date across all the time slots
+def most_visited_counter_for_latest_date_slot_time_func(db: Session):
 
-
-# def most_visited_counter_in_all_dates_slot_time(db: Session):
-#     # Define start and end time for the time slots (8 AM to 10 PM)
-#     start_time = datetime.now().replace(hour=8, minute=0, second=0, microsecond=0)
-#     end_time = datetime.now().replace(hour=22, minute=0, second=0, microsecond=0)
-    
-#     # Define time slot interval (30 minutes)
-#     time_slots = []
-#     while start_time < end_time:
-#         end_slot_time = start_time + timedelta(minutes=30)
-#         time_slots.append((start_time, end_slot_time))
-#         start_time = end_slot_time
-
-#     # Track the most visited counter overall
-#     most_visited_overall = None
-#     max_visitor_count = 0  # Variable to store the highest visitor count
-    
-#     # Loop through each time slot and get the most visited counter
-#     for slot_start, slot_end in time_slots:
-#         most_visited_result = (
-#             db.query(
-#                 Visitor.counter_id,
-#                 func.count(Visitor.person_id).label('visitor_count'),
-#                 func.sum(Visitor.person_duration_in_roi).label('total_duration')
-#             )
-#             .filter(Visitor.current_datetime >= slot_start, Visitor.current_datetime < slot_end)
-#             .group_by(Visitor.counter_id)
-#             .order_by(func.count(Visitor.person_id).desc())  # Most visited first
-#             .first()
-#         )
-        
-#         if most_visited_result:
-#             counter_id, visitor_count, total_duration = most_visited_result
-#             average_duration = round(total_duration / visitor_count, 2) if visitor_count > 0 else 0.00
-            
-#             # Update the overall most visited if this slot has more visitors
-#             if visitor_count > max_visitor_count:
-#                 most_visited_overall = {
-#                     "time_slot": f"{slot_start.strftime('%H:%M')}-{slot_end.strftime('%H:%M')}",
-#                     "counter_id": counter_id,
-#                     "visitor_count": visitor_count,
-#                     "average_duration": average_duration
-#                 }
-#                 max_visitor_count = visitor_count
-
-#     # Return the most visited counter overall (if found)
-#     if most_visited_overall:
-#         return most_visited_overall
-    
-#     # If no visitors found in any slot
-#     return {"message": "No visitors found in any time slot."}
-
-### most_visited_counter_in_latest_date_slot_time, This function returns only max visited counter in latest date across all the time slots
-def most_visited_counter(db: Session):
     # Get the latest date from the current_datetime field in the database
     latest_date = db.query(func.max(Visitor.current_datetime)).scalar()
     
@@ -377,7 +333,9 @@ def most_visited_counter(db: Session):
 
 
 
-
+###################################################################################################
+################### End of Most Visisted Counter Ideetifications Services #########################
+###################################################################################################
 
 
 
@@ -800,9 +758,7 @@ def report_details_of_selected_counter(db: Session, counter_id: int):
         raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data: {str(e)}")
 
 
-################################# Report Most visisted in each 15-min Slots  #################################
-################################# Report Most visisted in each 15-min Slots  #################################
-################################# Report Most visisted in each 15-min Slots  #################################
+
 
 
 
@@ -900,11 +856,9 @@ def stream_video_frames(video_path: str, width: int = 640, height: int = 480) ->
     cap.release()
 
 
-
-
     
 
-def insert_camera(db: Session, cam_name: str, cam_ip: str, cam_mac: str, cam_enable: bool, cam_rtsp: str, cam_desc: Optional[str]):
+def insert_camera(db: Session, cam_name: str, cam_ip: str, cam_mac: str, cam_enable: bool, cam_rtsp: str, cam_desc: Optional[str], exhibition_name: str):
     # Check if the IP address or MAC address already exists in the table
     existing_camera = db.query(Camera).filter(
         (Camera.cam_ip == cam_ip) | 
@@ -923,6 +877,7 @@ def insert_camera(db: Session, cam_name: str, cam_ip: str, cam_mac: str, cam_ena
             cam_enable=cam_enable,  # Use the boolean value from the toggle button
             cam_rtsp=cam_rtsp,
             cam_desc=cam_desc,
+            exhibition_name=exhibition_name,  # Add this line
             cam_last_date_modified=datetime.now()  # Automatically set the current time
         )
 
@@ -941,6 +896,7 @@ def insert_camera(db: Session, cam_name: str, cam_ip: str, cam_mac: str, cam_ena
         raise HTTPException(status_code=400, detail="An error occurred while inserting the camera.")
     finally:
         db.close()
+
 
 
 
@@ -979,6 +935,7 @@ def camera_details_for_edit(db: Session, id: int):
                 "cam_mac": camera.cam_mac,
                 "cam_enable": camera.cam_enable,
                 "cam_rtsp": camera.cam_rtsp,
+                "exhibition_name": camera.exhibition_name,
                 "age_detect_status": camera.age_detect_status,
                 "gender_detect_status": camera.gender_detect_status,
                 "person_counting_status": camera.person_counting_status,
@@ -1001,6 +958,7 @@ def camera_edit_save(
     cam_mac: str, 
     cam_enable: bool, 
     cam_rtsp: str,
+    exhibition_name: str,
     age_detect_status: bool, 
     gender_detect_status: bool, 
     person_counting_status: bool, 
@@ -1020,6 +978,7 @@ def camera_edit_save(
         camera.cam_mac = cam_mac
         camera.cam_enable = cam_enable
         camera.cam_rtsp = cam_rtsp
+        camera.exhibition_name = exhibition_name
         camera.age_detect_status = age_detect_status
         camera.gender_detect_status = gender_detect_status
         camera.person_counting_status = person_counting_status
