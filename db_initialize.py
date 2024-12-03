@@ -64,12 +64,11 @@ class Camera(Base):
     # Relationship with ROI table
     rois = relationship("ROI", back_populates="camera", cascade="all, delete-orphan")
 
-
 class ROI(Base):
     __tablename__ = 'tbl_rois'
 
     roi_id = Column(Integer, primary_key=True)
-    roi_name = Column(String(50), nullable=False, unique=True)
+    roi_name = Column(String(50), nullable=False, unique=True) 
     roi_coor = Column(String, nullable=False)  # Coordinates for the ROI (e.g., JSON string or coordinate format)
     roi_desc = Column(Text)  # Description of the ROI (optional)
 
@@ -108,6 +107,17 @@ class Notification(Base):
     timestamp = Column(DateTime, nullable=False)  # Date and time of notification
     desc = Column(Text)  # Description of notification
 
+
+class Exhibition(Base):
+    __tablename__ = "tbl_exhibitions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    description = Column(String)
+    start_date = Column(DateTime)
+    end_date = Column(DateTime)
+
+
 # Function to list all existing tables
 def list_tables():
     inspector = inspect(engine)
@@ -134,6 +144,7 @@ def initialize_db():
         logger.info("Tables created successfully.")
     except Exception as e:
         logger.error(f"Error during table creation: {e}")
+
 
 if __name__ == "__main__":
     drop_all_tables()  # Call to drop all tables
