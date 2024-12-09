@@ -865,7 +865,7 @@ def stream_video_frames(video_path: str, width: int = 640, height: int = 480) ->
 
     
 
-def insert_camera(db: Session, cam_name: str, cam_ip: str, cam_mac: str, cam_enable: bool, cam_rtsp: str, cam_desc: Optional[str], exhibition_name: str):
+def insert_camera(db: Session, cam_name: str, cam_ip: str, cam_mac: str, cam_enable: bool, cam_rtsp: str, cam_desc: Optional[str], exhibition_id: int):
     # Check if the IP address or MAC address already exists in the table
     existing_camera = db.query(Camera).filter(
         (Camera.cam_ip == cam_ip) | 
@@ -884,7 +884,7 @@ def insert_camera(db: Session, cam_name: str, cam_ip: str, cam_mac: str, cam_ena
             cam_enable=cam_enable,  # Use the boolean value from the toggle button
             cam_rtsp=cam_rtsp,
             cam_desc=cam_desc,
-            exhibition_name=exhibition_name,  # Add this line
+            exhibition_id=exhibition_id,  # Add this line
             cam_last_date_modified=datetime.now()  # Automatically set the current time
         )
 
@@ -1325,3 +1325,5 @@ def get_exhibition_names(db: Session):
     except Exception as e:
         print(f"Error fetching exhibition names: {e}")
         return []
+
+
