@@ -787,7 +787,7 @@ def get_cameras_details(db: Session):
                 "cam_mac": camera.cam_mac,
                 "cam_enable": camera.cam_enable,
                 "cam_rtsp": camera.cam_rtsp,
-                "exhibition_name": camera.exhibition_name,
+                "exhibition_id": camera.exhibition_id,
                 "age_detect_status": camera.age_detect_status,
                 "gender_detect_status": camera.gender_detect_status,
                 "person_counting_status": camera.person_counting_status,
@@ -942,7 +942,7 @@ def camera_details_for_edit(db: Session, id: int):
                 "cam_mac": camera.cam_mac,
                 "cam_enable": camera.cam_enable,
                 "cam_rtsp": camera.cam_rtsp,
-                "exhibition_name": camera.exhibition_name,
+                "exhibition_id": camera.exhibition_id,
                 "age_detect_status": camera.age_detect_status,
                 "gender_detect_status": camera.gender_detect_status,
                 "person_counting_status": camera.person_counting_status,
@@ -965,7 +965,7 @@ def camera_edit_save(
     cam_mac: str, 
     cam_enable: bool, 
     cam_rtsp: str,
-    exhibition_name: str,
+    exhibition_id: int,
     age_detect_status: bool, 
     gender_detect_status: bool, 
     person_counting_status: bool, 
@@ -985,7 +985,7 @@ def camera_edit_save(
         camera.cam_mac = cam_mac
         camera.cam_enable = cam_enable
         camera.cam_rtsp = cam_rtsp
-        camera.exhibition_name = exhibition_name
+        camera.exhibition_id = exhibition_id
         camera.age_detect_status = age_detect_status
         camera.gender_detect_status = gender_detect_status
         camera.person_counting_status = person_counting_status
