@@ -41,6 +41,12 @@ class Visitor(Base):
     person_gender = Column(String)    
     current_datetime = Column(DateTime, nullable=False)
 
+    # The field to link to the Exhibition table
+    exhibition_id = Column(Integer, ForeignKey('tbl_exhibitions.id'), nullable=True)
+    
+    # Relationship to the Exhibition class
+    exhibition = relationship("Exhibition", back_populates="visitors")
+
 # Define the Camera Model
 class Camera(Base):
     __tablename__ = 'tbl_cameras'
@@ -50,19 +56,23 @@ class Camera(Base):
     cam_ip = Column(String, unique=True)  # Ensuring IP is unique
     cam_mac = Column(String, unique=True)  # Ensuring MAC Address is unique
     cam_enable = Column(Boolean)
-    cam_rtsp = Column(String)  #
-    age_detect_status = Column(Boolean, default=True)  # Default value set to True
+    cam_rtsp = Column(String)
+    age_detect_status = Column(Boolean, default=True)
     gender_detect_status = Column(Boolean, default=True)
     person_counting_status = Column(Boolean, default=True)
     time_duration_calculation_status = Column(Boolean, default=True)
     cam_last_date_modified = Column(DateTime)
     cam_desc = Column(Text)
+    # New column for exhibition name
+    exhibition_name = Column(String, nullable=True, default=None)
     
     # New column for camera video display with default value False in dashboard
-    dashboard_display = Column(Boolean, default=False)  
+    dashboard_display = Column(Boolean, default=False) 
+    
     
     # Relationship with ROI table
     rois = relationship("ROI", back_populates="camera", cascade="all, delete-orphan")
+
 
 class ROI(Base):
     __tablename__ = 'tbl_rois'
@@ -109,13 +119,16 @@ class Notification(Base):
 
 
 class Exhibition(Base):
-    __tablename__ = "tbl_exhibitions"
+    __tablename__ = 'tbl_exhibitions'
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     description = Column(String)
     start_date = Column(DateTime)
     end_date = Column(DateTime)
+
+    # Back-reference to Visitor
+    visitors = relationship("Visitor", back_populates="exhibition")
 
 
 # Function to list all existing tables
@@ -144,6 +157,7 @@ def initialize_db():
         logger.info("Tables created successfully.")
     except Exception as e:
         logger.error(f"Error during table creation: {e}")
+
 
 
 if __name__ == "__main__":
