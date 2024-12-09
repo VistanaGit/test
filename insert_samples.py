@@ -1,5 +1,5 @@
 from db_configure import SessionLocal
-from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
+from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification, Exhibition
 from datetime import datetime, timedelta
 import random
 
@@ -174,6 +174,13 @@ def insert_visitors():
             10: 3   # Least records for counter_id = 10
         }
 
+        # Retrieve all available exhibitions to randomly assign to visitors
+        exhibitions = session.query(Exhibition).all()
+        exhibition_ids = [exhibition.id for exhibition in exhibitions]
+        
+        if not exhibition_ids:
+            raise Exception("No exhibitions found. Please add exhibitions before inserting visitors.")
+
         # Generate visitor records based on distribution
         person_id = person_id_start
         for counter_id, count in counter_distribution.items():
@@ -189,6 +196,9 @@ def insert_visitors():
                 # Combine base date with random time
                 current_datetime = base_date.replace(hour=random_hour, minute=random_minute, second=random_second)
 
+                # Randomly select an exhibition_id for each visitor
+                random_exhibition_id = random.choice(exhibition_ids)
+
                 visitors.append(
                     Visitor(
                         person_id=person_id,
@@ -198,7 +208,8 @@ def insert_visitors():
                         person_duration_in_roi=(person_id * 10) % 300 + 60,  # Random duration pattern
                         person_age_group=['young', 'adult', 'teenager', 'senior'][person_id % 4],
                         person_gender=['male', 'female'][person_id % 2],  # Alternating male/female
-                        current_datetime=current_datetime
+                        current_datetime=current_datetime,
+                        exhibition_id=random_exhibition_id  # Assign random exhibition
                     )
                 )
                 person_id += 1
@@ -211,6 +222,7 @@ def insert_visitors():
         print(f"An error occurred while inserting visitors data: {e}")
     finally:
         session.close()
+
 
 
 
@@ -285,8 +297,65 @@ def insert_notifications():
     finally:
         session.close()
 
+
+
+# Define the function to insert exhibitions
+def insert_exhibitions():
+    session = SessionLocal()  # Assuming SessionLocal is defined in your setup
+    try:
+        # Generate a list of exhibitions with random data
+        exhibitions = []
+        
+        # Possible names and descriptions for random selection
+        names = [
+            "Modern Art Expo", "Tech Innovation Fair", "Cultural Heritage Exhibit",
+            "Science and Discovery Festival", "Ancient Artifacts Showcase"
+        ]
+        
+        descriptions = [
+            "Explore the latest in modern art.",
+            "Showcasing innovative tech solutions.",
+            "A journey through cultural heritage.",
+            "Interactive science exhibits.",
+            "Discover ancient artifacts from around the world."
+        ]
+        
+        for _ in range(5):  # Insert 10 exhibition records
+            name = random.choice(names)
+            description = random.choice(descriptions)
+            
+            # Generate a random start_date within the past 60 days
+            start_date = datetime.now() - timedelta(days=random.randint(1, 60))
+            
+            # End date is between 1 to 30 days after the start_date
+            end_date = start_date + timedelta(days=random.randint(1, 30))
+            
+            # Create and append an Exhibition instance
+            exhibitions.append(
+                Exhibition(
+                    name=name,
+                    description=description,
+                    start_date=start_date,
+                    end_date=end_date
+                )
+            )
+        
+        # Insert all exhibition records into the database
+        session.add_all(exhibitions)
+        session.commit()
+        print(f"exhibitions inserted successfully!")
+    
+    except Exception as e:
+        session.rollback()
+        print(f"An error occurred while inserting exhibitions data: {e}")
+    
+    finally:
+        session.close()
+
+
 # Main function to run all insert operations
 def main():
+    insert_exhibitions()    # Call the function to insert the data
     insert_accounts()
     insert_cameras()
     insert_counters()
@@ -294,6 +363,7 @@ def main():
     insert_visitors()      # Existing function to insert visitors
     insert_activities()     # New function to insert activities
     insert_notifications()   # New function to insert notifications
+    
 
 if __name__ == "__main__":
     main()
