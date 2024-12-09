@@ -503,7 +503,7 @@ def get_visitor_records(
     end_date: str, 
     counter_id: int = None, 
     id: int = None, 
-    person_id: int = None,  # Add person_id parameter
+    person_id: int = None,  
     age: str = None, 
     gender: str = None
 ):
@@ -514,46 +514,56 @@ def get_visitor_records(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use 'YYYY-MM-DD'.")
 
-    # Base query
-    query = db.query(Visitor).filter(Visitor.current_datetime.between(start_date, end_date))
+    try:
+        # Base query with a join to the Exhibition table
+        query = db.query(Visitor, Exhibition.name.label("exhibition_name")).join(
+            Exhibition, Visitor.exhibition_id == Exhibition.id  # Ensure there's an exhibition_id in Visitor
+        ).filter(
+            Visitor.current_datetime.between(start_date, end_date)
+        )
 
-    # Apply filters if provided
-    if counter_id is not None:
-        query = query.filter(Visitor.counter_id == counter_id)
+        # Apply filters if provided
+        if counter_id is not None:
+            query = query.filter(Visitor.counter_id == counter_id)
+        
+        if id is not None:
+            query = query.filter(Visitor.id == id)
+
+        if person_id is not None:
+            query = query.filter(Visitor.person_id == person_id)
+
+        if age is not None:
+            query = query.filter(Visitor.person_age_group == age)
+
+        if gender is not None:
+            query = query.filter(Visitor.person_gender == gender)
+
+        # Fetch records
+        records = query.all()
+
+        # Prepare data for return
+        data = []
+        if records:
+            for idx, (record, exhibition_name) in enumerate(records, start=1):
+                data.append({
+                    "no": idx,
+                    "counter_id": record.counter_id,
+                    "camera_id": record.cam_id,
+                    "person_id": record.person_id,
+                    "attendance_duration": record.person_duration_in_roi,
+                    "gender": record.person_gender,
+                    "age": record.person_age_group,
+                    "roi": record.roi_id,
+                    "date_time": record.current_datetime,
+                    "exhibition_name": exhibition_name
+                })
+
+        return data  # Return the data, which could be an empty list
     
-    if id is not None:
-        query = query.filter(Visitor.id == id)
+    except SQLAlchemyError as e:
+        logging.error(f"Error fetching visitor records: {e}")
+        raise HTTPException(status_code=500, detail="Error fetching visitor records")
 
-    if person_id is not None:  # Add filter for person_id
-        query = query.filter(Visitor.person_id == person_id)
-
-    if age is not None:
-        query = query.filter(Visitor.person_age_group == age)
-
-    if gender is not None:
-        query = query.filter(Visitor.person_gender == gender)
-
-    # Fetch records
-    records = query.all()
-    
-    # Instead of raising an exception, return an empty list if no records found
-    data = []
-    if records:
-        # Prepare data for CSV/Excel export
-        for idx, record in enumerate(records, start=1):
-            data.append({
-                "no": idx,  # Changed to snake_case
-                "counter_id": record.counter_id,  # Changed to snake_case
-                "camera_id": record.cam_id,  # Changed to snake_case
-                "person_id": record.person_id,  # Changed to snake_case
-                "attendance_duration": record.person_duration_in_roi,  # Changed to snake_case
-                "gender": record.person_gender,  # Changed to snake_case
-                "age": record.person_age_group,  # Changed to snake_case
-                "roi": record.roi_id,  # Changed to snake_case
-                "date_time": record.current_datetime  # Changed to snake_case
-            })
-
-    return data  # Return the data, which could be an empty list
 
 
 def export_visitor_records_to_csv(data):
@@ -758,16 +768,12 @@ def report_details_of_selected_counter(db: Session, counter_id: int):
         raise HTTPException(status_code=500, detail=f"An error occurred while retrieving data: {str(e)}")
 
 
+##################################################################################
+################################# CAMERA #########################################
+##################################################################################
 
 
-
-
-################################# CAMERA  ########################################
-################################# CAMERA  ########################################
-################################# CAMERA  ########################################
-
-
-def get_all_cameras(db: Session):
+def get_cameras_details(db: Session):
     try:
         # Query all cameras from the Camera table
         cameras = db.query(Camera).all()
@@ -781,6 +787,7 @@ def get_all_cameras(db: Session):
                 "cam_mac": camera.cam_mac,
                 "cam_enable": camera.cam_enable,
                 "cam_rtsp": camera.cam_rtsp,
+                "exhibition_name": camera.exhibition_name,
                 "age_detect_status": camera.age_detect_status,
                 "gender_detect_status": camera.gender_detect_status,
                 "person_counting_status": camera.person_counting_status,
@@ -1258,34 +1265,65 @@ def user_edit_save(
 
 
 def add_exhibition(db: Session, name: str, description: str, start_date: str, end_date: str):
-    new_exhibition = Exhibition(name=name, description=description, start_date=start_date, end_date=end_date)
-    db.add(new_exhibition)
-    db.commit()
-    db.refresh(new_exhibition)
-    return new_exhibition
+    try:
+        new_exhibition = Exhibition(name=name, description=description, start_date=start_date, end_date=end_date)
+        db.add(new_exhibition)
+        db.commit()
+        db.refresh(new_exhibition)
+        return new_exhibition
+    except SQLAlchemyError as e:
+        db.rollback()
+        logging.error(f"Error adding exhibition: {e}")
+        return None
 
 def list_exhibitions(db: Session):
-    return db.query(Exhibition).all()
+    try:
+        return db.query(Exhibition).all()
+    except SQLAlchemyError as e:
+        logging.error(f"Error listing exhibitions: {e}")
+        return []
 
 def edit_exhibition(db: Session, exhibition_id: int, name: str, description: str, start_date: str, end_date: str):
-    exhibition = db.query(Exhibition).filter(Exhibition.id == exhibition_id).first()
-    if exhibition:
-        exhibition.name = name
-        exhibition.description = description
-        exhibition.start_date = start_date
-        exhibition.end_date = end_date
-        db.commit()
-        return exhibition
-    else:
+    try:
+        exhibition = db.query(Exhibition).filter(Exhibition.id == exhibition_id).first()
+        if exhibition:
+            exhibition.name = name
+            exhibition.description = description
+            exhibition.start_date = start_date
+            exhibition.end_date = end_date
+            db.commit()
+            db.refresh(exhibition)
+            return exhibition
+        else:
+            logging.warning(f"Exhibition with ID {exhibition_id} not found.")
+            return None
+    except SQLAlchemyError as e:
+        db.rollback()
+        logging.error(f"Error editing exhibition: {e}")
         return None
 
 def delete_exhibition(db: Session, exhibition_id: int):
-    exhibition = db.query(Exhibition).filter(Exhibition.id == exhibition_id).first()
-    if exhibition:
-        db.delete(exhibition)
-        db.commit()
-        return True
-    else:
+    try:
+        exhibition = db.query(Exhibition).filter(Exhibition.id == exhibition_id).first()
+        if exhibition:
+            db.delete(exhibition)
+            db.commit()
+            return True
+        else:
+            logging.warning(f"Exhibition with ID {exhibition_id} not found.")
+            return False
+    except SQLAlchemyError as e:
+        db.rollback()
+        logging.error(f"Error deleting exhibition: {e}")
         return False
+
+
+def get_exhibition_names(db: Session):
+    try:
+        exhibitions = db.query(Exhibition.name).all()  # Fetch only the 'name' field
+        return [exhibition.name for exhibition in exhibitions]  # Convert to list of names
+    except Exception as e:
+        print(f"Error fetching exhibition names: {e}")
+        return []
 
 
