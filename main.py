@@ -574,12 +574,11 @@ async def delete_camera_service(
 @app.get("/cameras/{id}")
 async def camera_details_for_edit_service(
     id: int,  # Accept the camera ID as a path parameter
-    db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    db: Session = Depends(get_db)
 ):
     try:
         # Verify token
-        token_data = verify_token(token)
+        #token_data = verify_token(token)
 
         # Call the camera_details_for_edit function from service_functions
         camera_details = camera_details_for_edit(db, id)  # Use id from path parameter
@@ -597,12 +596,11 @@ async def camera_details_for_edit_service(
 async def camera_edit_save_service(
     id: int,  # Accept id as a path parameter
     camera_data: CameraData,
-    db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    db: Session = Depends(get_db)
 ):
     try:
         # Verify token
-        token_data = verify_token(token)
+        #token_data = verify_token(token)
 
         # Call the camera_edit_save function from service_functions
         camera_edit_save(
@@ -613,7 +611,7 @@ async def camera_edit_save_service(
             cam_mac=camera_data.cam_mac,
             cam_enable=camera_data.cam_enable,
             cam_rtsp=camera_data.cam_rtsp,
-            exhibition_name=camera_data.exhibition_name,
+            exhibition_id=camera_data.exhibition_id,
             age_detect_status=camera_data.age_detect_status,
             gender_detect_status=camera_data.gender_detect_status,
             person_counting_status=camera_data.person_counting_status,
