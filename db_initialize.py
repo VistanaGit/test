@@ -64,7 +64,7 @@ class Camera(Base):
     cam_last_date_modified = Column(DateTime)
     cam_desc = Column(Text)
     # New column for exhibition name
-    exhibition_name = Column(String, nullable=True, default=None)
+    exhibition_id = Column(Integer, nullable=True, default=None)
     
     # New column for camera video display with default value False in dashboard
     dashboard_display = Column(Boolean, default=False) 
