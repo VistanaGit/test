@@ -14,7 +14,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
-from service_functions import (
+from service_functions_5 import (
     recover_password,
     login,
     get_counter_list,
@@ -506,7 +506,7 @@ class CameraData(BaseModel):
     cam_mac: str
     cam_enable: bool
     cam_rtsp: str
-    exhibition_name: str
+    exhibition_id: int
     age_detect_status: bool
     gender_detect_status: bool
     person_counting_status: bool
@@ -530,12 +530,11 @@ def get_camera_list_endpoint(db: Session = Depends(get_db)
 @app.post("/cameras")
 async def insert_camera_service(
     camera_data: CameraData,  # Use Pydantic model to receive the data
-    db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    db: Session = Depends(get_db)
 ):
     try:
         # Verify token
-        token_data = verify_token(token)
+        #token_data = verify_token(token)
 
         # Call the insert_camera function to insert the new record
         insert_camera(
@@ -546,7 +545,7 @@ async def insert_camera_service(
             cam_enable=camera_data.cam_enable,
             cam_rtsp=camera_data.cam_rtsp,
             cam_desc=camera_data.cam_desc,
-            exhibition_name=camera_data.exhibition_name
+            exhibition_id=camera_data.exhibition_id
         )
 
         # Return a success message
