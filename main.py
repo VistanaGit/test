@@ -36,7 +36,7 @@ from service_functions import (
     get_visitor_records,
     get_most_recent_video,
     stream_video_frames,
-    get_all_cameras,
+    get_cameras_details,
     insert_camera,
     delete_camera_by_id,
     camera_details_for_edit,
@@ -53,6 +53,7 @@ from service_functions import (
     list_exhibitions,
     edit_exhibition,
     delete_exhibition,
+    get_exhibition_names,
     PasswordRecoveryData,
     LoginData,
     get_logged_in_user,
@@ -72,7 +73,7 @@ app = FastAPI()
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust this to specific domains as needed
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -210,9 +211,9 @@ def get_notification_list_endpoint(db: Session = Depends(get_db), token: str = D
 
 
 
-###########################################################################################
-################################ Dashboard Services #######################################
-###########################################################################################
+
+################################ Dashboard APIs ###################################
+
 
 
 # New endpoint to get the logged-in user's details (first_name and last_name)
@@ -345,7 +346,7 @@ def latest_disabled_camera(db: Session = Depends(get_db), token: str = Depends(o
     return response  # Return the message from the service function
 
 
-################################# REPORT PAGE ########################################
+################################# REPORT APIs ###################################
 
 @app.get("/report_visitor_table/") 
 async def report_visitor_table(
@@ -355,10 +356,9 @@ async def report_visitor_table(
     id: int = None,
     age: str = None,
     gender: str = None,
-    db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    db: Session = Depends(get_db)
 ):
-    token_data = verify_token(token)  # Verifying the token
+    #token_data = verify_token(token)  # Verifying the token
     visitors = get_visitor_records(db, start_date, end_date, counter_id, id, age, gender)
     
     # Instead of raising 404, return the visitors data which could be empty
@@ -373,14 +373,14 @@ def export_visitor_records_csv(
     id: int = None,
     age: str = None,
     gender: str = None,
-    db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    exhibition: str = None,
+    db: Session = Depends(get_db)
 ):
-    token_data = verify_token(token)  # Verifying the token
+    #token_data = verify_token(token)  # Verifying the token
     if not start_date or not end_date:
         raise HTTPException(status_code=400, detail="Start date and end date must be provided.")
     
-    data = get_visitor_records(db, start_date, end_date, counter_id, id, age, gender)
+    data = get_visitor_records(db, start_date, end_date, counter_id, id, age, gender, exhibition)
     csv_file = export_visitor_records_to_csv(data)
     return StreamingResponse(csv_file, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=visitor_records.csv"})
 
@@ -392,6 +392,7 @@ def export_visitor_records_excel(
     id: int = None,
     age: str = None,
     gender: str = None,
+    exhibition: str = None,
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
 ):
@@ -399,7 +400,7 @@ def export_visitor_records_excel(
     if not start_date or not end_date:
         raise HTTPException(status_code=400, detail="Start date and end date must be provided.")
     
-    data = get_visitor_records(db, start_date, end_date, counter_id, id, age, gender)
+    data = get_visitor_records(db, start_date, end_date, counter_id, id, age, gender, exhibition)
     excel_file = export_visitor_records_to_excel(data)
     return StreamingResponse(excel_file, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              headers={"Content-Disposition": "attachment; filename=visitor_records.xlsx"})
@@ -496,22 +497,7 @@ async def report_details_of_selected_counter_route(
 
 
 
-################################ CAMERAS ######################################
-
-@app.get("/cameras")
-def get_camera_list_endpoint(db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
-):
-    # Verifying the token
-    token_data = verify_token(token)  
-
-    try:
-        cameras = get_all_cameras(db)  # Fetch camera list from the database
-        return cameras
-    except Exception as e:
-        logging.error(f"Error fetching camera list: {e}")  # Log the error for debugging
-        raise HTTPException(status_code=500, detail="Error fetching camera list")  # Raise an HTTP exception for error handling
-
+################################ CAMERAS APIs ######################################
 
 # Define the Pydantic model for Camera data
 class CameraData(BaseModel):
@@ -520,8 +506,26 @@ class CameraData(BaseModel):
     cam_mac: str
     cam_enable: bool
     cam_rtsp: str
-    cam_desc: str
     exhibition_name: str
+    age_detect_status: bool
+    gender_detect_status: bool
+    person_counting_status: bool
+    time_duration_calculation_status: bool
+    cam_desc: Optional[str] = None
+
+@app.get("/cameras")
+def get_camera_list_endpoint(db: Session = Depends(get_db)
+):
+    # Verifying the token
+    #token_data = verify_token(token)  
+
+    try:
+        cameras = get_cameras_details(db)  # Fetch camera list from the database
+        return cameras
+    except Exception as e:
+        logging.error(f"Error fetching camera list: {e}")  # Log the error for debugging
+        raise HTTPException(status_code=500, detail="Error fetching camera list")  # Raise an HTTP exception for error handling
+
 
 @app.post("/cameras")
 async def insert_camera_service(
@@ -549,11 +553,6 @@ async def insert_camera_service(
         return {"message": "Camera inserted successfully."}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-
-
-
-class CameraDeleteRequest(BaseModel):
-    id: int  # Field to hold the camera ID
 
 
 @app.delete("/cameras/{id}")
@@ -595,25 +594,10 @@ async def camera_details_for_edit_service(
 
 
 
-# Pydantic model for camera edit data
-class CameraEditData(BaseModel):
-    cam_name: str
-    cam_ip: str
-    cam_mac: str
-    cam_enable: bool
-    cam_rtsp: str
-    exhibition_name: str
-    age_detect_status: bool
-    gender_detect_status: bool
-    person_counting_status: bool
-    time_duration_calculation_status: bool
-    cam_desc: Optional[str] = None
-
-#@app.put("/cameras/{id}")  # Update the endpoint to /cameras/{id}
 @app.patch("/cameras/{id}")  # Optionally allow PATCH as well
 async def camera_edit_save_service(
     id: int,  # Accept id as a path parameter
-    camera_data: CameraEditData,
+    camera_data: CameraData,
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
 ):
@@ -642,9 +626,6 @@ async def camera_edit_save_service(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-
-
-
 @app.get("/camera_video_view")
 async def camera_video_view(id: int, db: Session = Depends(get_db)):
     # Get the most recent video for the selected camera
@@ -662,7 +643,15 @@ async def camera_video_view(id: int, db: Session = Depends(get_db)):
 
 
 
-#################################### ROIS ###########################################
+
+#################################### ROIS APIs ######################################
+
+# ROI Update Schema
+class ROIData(BaseModel):
+    roi_name: str
+    roi_coor: str  # Coordinates for the ROI
+    roi_desc: Optional[str] = None  # Optional description
+
 
 ## List of ROIs service
 @app.get("/rois/{camera_id}")
@@ -686,8 +675,7 @@ def list_rois(camera_id: int, db: Session = Depends(get_db),
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 
-
-## Delete ROI service
+# Delete ROI service
 @app.delete("/rois/{camera_id}/{roi_id}")
 def delete_roi(camera_id: int, roi_id: int, db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)):
@@ -710,19 +698,12 @@ def delete_roi(camera_id: int, roi_id: int, db: Session = Depends(get_db),
 
 
 
-# ROI Update Schema
-class ROIEditData(BaseModel):
-    roi_name: str
-    roi_coor: str  # Coordinates for the ROI
-    roi_desc: Optional[str] = None  # Optional description
-
-
 # ROI Edit Endpoint
 @app.patch("/rois/{camera_id}/{roi_id}")
 async def roi_edit_service(
     camera_id: int,  # Accept camera_id as a path parameter
     roi_id: int,  # Accept roi_id as a path parameter
-    roi_data: ROIEditData,  # Accept the ROI details as a request body
+    roi_data: ROIData,  # Accept the ROI details as a request body
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
 ):
@@ -756,7 +737,7 @@ async def insert_roi(camera_id: int):
         return {"error": str(e)}
 
 
-################################ ACCOUNT ######################################
+################################ ACCOUNTS APIs ######################################
 
 # Creat users service to fetch all users
 @app.get("/users")
@@ -959,3 +940,17 @@ async def delete_exhibition_service(exhibition_id: int, db: Session = Depends(ge
         return {"message": "Exhibition deleted successfully"}
     else:
         raise HTTPException(status_code=404, detail="Exhibition not found")
+
+
+# Endpoint to list exhibition names
+@app.get("/exhibitions/names")
+def get_exhibition_names_endpoint(db: Session = Depends(get_db)):
+    # Verifying the token
+    #token_data = verify_token(token)  
+
+    try:
+        exhibition_names = get_exhibition_names(db)  # Fetch exhibition names from the database
+        return exhibition_names
+    except Exception as e:
+        logging.error(f"Error fetching exhibition names: {e}")  # Log the error for debugging
+        raise HTTPException(status_code=500, detail="Error fetching exhibition names")  # Raise an HTTP exception for error handling
