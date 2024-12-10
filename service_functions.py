@@ -882,9 +882,9 @@ def insert_camera(db: Session, cam_name: str, cam_ip: str, cam_mac: str, cam_ena
             cam_ip=cam_ip,
             cam_mac=cam_mac,
             cam_enable=cam_enable,  # Use the boolean value from the toggle button
-            cam_rtsp=cam_rtsp,
-            cam_desc=cam_desc,
+            cam_rtsp=cam_rtsp,            
             exhibition_id=exhibition_id,  # Add this line
+            cam_desc=cam_desc,
             cam_last_date_modified=datetime.now()  # Automatically set the current time
         )
 
@@ -1346,5 +1346,3 @@ def get_exhibition_names(db: Session):
     except Exception as e:
         print(f"Error fetching exhibition names: {e}")
         return []
-
-
