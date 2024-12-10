@@ -268,7 +268,7 @@ def most_visited_counter_for_each_slot_time_in_latest_date_func(db: Session):
 
 
 
-# This function returns only max visited counter in latest date across all the time slots
+# This function identifies the most visited counter during specific time slots on the latest date stored in the database.
 def most_visited_counter_for_latest_date_slot_time_func(db: Session):
 
     # Get the latest date from the current_datetime field in the database
@@ -332,15 +332,71 @@ def most_visited_counter_for_latest_date_slot_time_func(db: Session):
 
 
 
+# Function to identify the minimum visited counter in time slots for the latest date
+def minimum_visited_counter_for_latest_date_slot_time_func(db: Session):
+    # Step 1: Get the latest date from the current_datetime field in the database
+    latest_date = db.query(func.max(Visitor.current_datetime)).scalar()
+    
+    if not latest_date:
+        return {"message": "No data available."}
+
+    # Extract the date part of the latest datetime (ignore time)
+    latest_date = latest_date.date()
+
+    # Step 2: Define start and end time for the time slots (8 AM to 10 PM) for the latest date
+    start_time = datetime.combine(latest_date, datetime.min.time()).replace(hour=8, minute=0, second=0, microsecond=0)
+    end_time = datetime.combine(latest_date, datetime.min.time()).replace(hour=22, minute=0, second=0, microsecond=0)
+
+    # Step 3: Define time slot interval (30 minutes)
+    time_slots = []
+    while start_time < end_time:
+        end_slot_time = start_time + timedelta(minutes=30)
+        time_slots.append((start_time, end_slot_time))
+        start_time = end_slot_time
+
+    # Track the minimum visited counter overall
+    min_visited_overall = None
+    min_visitor_count = float('inf')  # Initialize to a very high value
+
+    # Step 4: Loop through each time slot and find the minimum visited counter
+    for slot_start, slot_end in time_slots:
+        min_visited_result = (
+            db.query(
+                Visitor.counter_id,
+                func.count(Visitor.person_id).label('visitor_count'),
+                func.sum(Visitor.person_duration_in_roi).label('total_duration')
+            )
+            .filter(Visitor.current_datetime >= slot_start, Visitor.current_datetime < slot_end)
+            .group_by(Visitor.counter_id)
+            .order_by(func.count(Visitor.person_id).asc())  # Least visited first
+            .first()
+        )
+
+        if min_visited_result:
+            counter_id, visitor_count, total_duration = min_visited_result
+            average_duration = round(total_duration / visitor_count, 2) if visitor_count > 0 else 0.00
+
+            # Update the overall minimum visited if this slot has fewer visitors
+            if visitor_count < min_visitor_count:
+                min_visited_overall = {
+                    "time_slot": f"{slot_start.strftime('%H:%M')}-{slot_end.strftime('%H:%M')}",
+                    "counter_id": counter_id,
+                    "visitor_count": visitor_count,
+                    "average_duration": average_duration
+                }
+                min_visitor_count = visitor_count
+
+    # Step 5: Return the minimum visited counter overall (if found)
+    if min_visited_overall:
+        return min_visited_overall
+
+    # If no visitors found in any slot
+    return {"message": "No visitors found in any time slot."}
+
 
 ###################################################################################################
 ################### End of Most Visisted Counter Ideetifications Services #########################
 ###################################################################################################
-
-
-
-
-
 
 
 
@@ -1346,3 +1402,5 @@ def get_exhibition_names(db: Session):
     except Exception as e:
         print(f"Error fetching exhibition names: {e}")
         return []
+
+
