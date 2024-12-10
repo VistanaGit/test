@@ -499,20 +499,6 @@ async def report_details_of_selected_counter_route(
 
 ################################ CAMERAS APIs ######################################
 
-# Define the Pydantic model for Camera data
-class CameraData(BaseModel):
-    cam_name: str
-    cam_ip: str
-    cam_mac: str
-    cam_enable: bool
-    cam_rtsp: str
-    exhibition_id: int
-    age_detect_status: bool
-    gender_detect_status: bool
-    person_counting_status: bool
-    time_duration_calculation_status: bool
-    cam_desc: Optional[str] = None
-
 @app.get("/cameras")
 def get_camera_list_endpoint(db: Session = Depends(get_db)
 ):
@@ -526,6 +512,15 @@ def get_camera_list_endpoint(db: Session = Depends(get_db)
         logging.error(f"Error fetching camera list: {e}")  # Log the error for debugging
         raise HTTPException(status_code=500, detail="Error fetching camera list")  # Raise an HTTP exception for error handling
 
+# Define the Pydantic model for Camera data
+class CameraData(BaseModel):
+    cam_name: str
+    cam_ip: str
+    cam_mac: str
+    cam_enable: bool
+    cam_rtsp: str
+    exhibition_id: int
+    cam_desc: Optional[str] = None
 
 @app.post("/cameras")
 async def insert_camera_service(
@@ -543,9 +538,9 @@ async def insert_camera_service(
             cam_ip=camera_data.cam_ip,
             cam_mac=camera_data.cam_mac,
             cam_enable=camera_data.cam_enable,
-            cam_rtsp=camera_data.cam_rtsp,
-            cam_desc=camera_data.cam_desc,
-            exhibition_id=camera_data.exhibition_id
+            cam_rtsp=camera_data.cam_rtsp,            
+            exhibition_id=camera_data.exhibition_id,
+            cam_desc=camera_data.cam_desc
         )
 
         # Return a success message
@@ -590,12 +585,24 @@ async def camera_details_for_edit_service(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-
+# Pydantic model for camera edit data
+class CameraEditData(BaseModel):
+    cam_name: str
+    cam_ip: str
+    cam_mac: str
+    cam_enable: bool
+    cam_rtsp: str
+    exhibition_id: int
+    age_detect_status: bool
+    gender_detect_status: bool
+    person_counting_status: bool
+    time_duration_calculation_status: bool
+    cam_desc: Optional[str] = None  # Optional description
 
 @app.patch("/cameras/{id}")  # Optionally allow PATCH as well
 async def camera_edit_save_service(
     id: int,  # Accept id as a path parameter
-    camera_data: CameraData,
+    camera_data: CameraEditData,
     db: Session = Depends(get_db)
 ):
     try:
