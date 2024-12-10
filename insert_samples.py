@@ -181,6 +181,9 @@ def insert_visitors():
         if not exhibition_ids:
             raise Exception("No exhibitions found. Please add exhibitions before inserting visitors.")
 
+        # Age groups to rotate through
+        age_groups = ['Child', 'Teenager', 'Young', 'Adult', 'Middle Age', 'Elderly']
+
         # Generate visitor records based on distribution
         person_id = person_id_start
         for counter_id, count in counter_distribution.items():
@@ -199,6 +202,9 @@ def insert_visitors():
                 # Randomly select an exhibition_id for each visitor
                 random_exhibition_id = random.choice(exhibition_ids)
 
+                # Assign age group in a cyclic manner
+                person_age_group = age_groups[person_id % len(age_groups)]
+
                 visitors.append(
                     Visitor(
                         person_id=person_id,
@@ -206,7 +212,7 @@ def insert_visitors():
                         counter_id=counter_id,
                         cam_id=counter_id,  # cam_id is the same as counter_id
                         person_duration_in_roi=(person_id * 10) % 300 + 60,  # Random duration pattern
-                        person_age_group=['young', 'adult', 'teenager', 'senior'][person_id % 4],
+                        person_age_group=person_age_group,
                         person_gender=['male', 'female'][person_id % 2],  # Alternating male/female
                         current_datetime=current_datetime,
                         exhibition_id=random_exhibition_id  # Assign random exhibition
@@ -222,6 +228,7 @@ def insert_visitors():
         print(f"An error occurred while inserting visitors data: {e}")
     finally:
         session.close()
+
 
 
 
