@@ -1264,17 +1264,38 @@ def user_edit_save(
 
 
 
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+import logging
+
 def add_exhibition(db: Session, name: str, description: str, start_date: str, end_date: str):
     try:
-        new_exhibition = Exhibition(name=name, description=description, start_date=start_date, end_date=end_date)
+        # Check if an exhibition with the same name already exists
+        existing_exhibition = db.query(Exhibition).filter(Exhibition.name == name).first()
+        if existing_exhibition:
+            raise HTTPException(status_code=400, detail="Exhibition with this name already exists.")
+
+        new_exhibition = Exhibition(
+            name=name,
+            description=description,
+            start_date=start_date,
+            end_date=end_date
+        )
         db.add(new_exhibition)
         db.commit()
         db.refresh(new_exhibition)
         return new_exhibition
+
+    except IntegrityError as e:
+        db.rollback()
+        logging.error(f"Integrity error: {e}")
+        raise HTTPException(status_code=400, detail="Exhibition with this name already exists.")
     except SQLAlchemyError as e:
         db.rollback()
         logging.error(f"Error adding exhibition: {e}")
-        return None
+        raise HTTPException(status_code=400, detail="An error occurred while adding the exhibition.")
+    finally:
+        db.close()
+
 
 def list_exhibitions(db: Session):
     try:
