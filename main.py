@@ -890,7 +890,6 @@ async def user_edit_save_service(
 
 
 
-# Add an exhibition
 @app.post("/exhibitions/")
 async def add_exhibition_service(
     name: str,
@@ -902,8 +901,11 @@ async def add_exhibition_service(
     try:
         new_exhibition = add_exhibition(db, name, description, start_date, end_date)
         return {"message": "Exhibition added successfully", "exhibition": new_exhibition}
+    except HTTPException as e:
+        raise e
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 # List all exhibitions
 @app.get("/exhibitions/")
