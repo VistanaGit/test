@@ -14,7 +14,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
-from service_functions import (
+from service_functions_5 import (
     recover_password,
     login,
     get_counter_list,
@@ -64,6 +64,7 @@ from service_functions import (
     most_visited_counter_no_slot_time_for_latest_date_func,
     most_visited_counter_for_each_slot_time_in_latest_date_func,
     most_visited_counter_for_latest_date_slot_time_func,
+    minimum_visited_counter_for_latest_date_slot_time_func,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -285,7 +286,7 @@ def most_visited_counter_for_each_slot_time_in_latest_date_endpoint(db: Session 
 
 
 
-# New endpoints for most visited counters
+# Endpoint for identifying the most visited counter during specific time slots on the latest date stored in the database.
 @app.get("/most_visited_counter_for_latest_date_slot_time")
 def most_visited_counter_for_latest_date_slot_time_endpoint(db: Session = Depends(get_db)):
     #token_data = verify_token(token)  # Verifying the token
@@ -296,6 +297,17 @@ def most_visited_counter_for_latest_date_slot_time_endpoint(db: Session = Depend
         logging.error(f"Error fetching most visited counter: {e}")
         return {"message": "Error fetching most visited counter"}
 
+
+# New endpoint to find the minimum visited counter for the latest date
+@app.get("/minimum_visited_counter_for_latest_date_slot_time")
+def minimum_visited_counter_for_latest_date_slot_time_endpoint(db: Session = Depends(get_db)):
+    try:
+        result = minimum_visited_counter_for_latest_date_slot_time_func(db)
+        return result
+    except Exception as e:
+        logging.error(f"Error fetching minimum visited counter: {e}")
+        return {"message": "Error fetching minimum visited counter"}
+        
 
 
 @app.post("/age_monitoring")
