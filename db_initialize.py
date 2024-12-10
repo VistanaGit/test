@@ -122,7 +122,7 @@ class Exhibition(Base):
     __tablename__ = 'tbl_exhibitions'
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
+    name = Column(String, unique=True, nullable=False)  # Ensure the name is unique
     description = Column(String)
     start_date = Column(DateTime)
     end_date = Column(DateTime)
