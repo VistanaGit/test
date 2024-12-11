@@ -218,10 +218,22 @@ def most_visited_counter_no_slot_time_for_latest_date_func(db: Session):
 
 
 
+
+
+
 def most_visited_counter_for_each_slot_time_in_latest_date_func(db: Session):
-    # Define start and end time for the time slots (8 AM to 10 PM)
-    start_time = datetime.now().replace(hour=8, minute=0, second=0, microsecond=0)
-    end_time = datetime.now().replace(hour=22, minute=0, second=0, microsecond=0)
+    # Get the latest datetime from the current_datetime field
+    latest_datetime = db.query(func.max(Visitor.current_datetime)).scalar()
+    
+    if not latest_datetime:
+        return {"message": "No data available in the database."}
+    
+    # Extract the latest date (ignoring the time component)
+    latest_date = latest_datetime.date()
+    
+    # Define start and end time for the time slots (8 AM to 10 PM) on the latest date
+    start_time = datetime.combine(latest_date, datetime.min.time()).replace(hour=8, minute=0, second=0, microsecond=0)
+    end_time = datetime.combine(latest_date, datetime.min.time()).replace(hour=22, minute=0, second=0, microsecond=0)
     
     # Define time slot interval (30 minutes)
     time_slots = []
@@ -232,7 +244,7 @@ def most_visited_counter_for_each_slot_time_in_latest_date_func(db: Session):
 
     # Prepare the result list for each time slot
     results = []
-    
+
     # Loop through each time slot and get the most visited counter
     for slot_start, slot_end in time_slots:
         most_visited_result = (
@@ -240,14 +252,14 @@ def most_visited_counter_for_each_slot_time_in_latest_date_func(db: Session):
                 Visitor.counter_id,
                 func.count(Visitor.person_id).label('visitor_count'),
                 func.sum(Visitor.person_duration_in_roi).label('total_duration'),
-                func.min(func.date(Visitor.current_datetime)).label('date')  # Extract the date
+                func.date(Visitor.current_datetime).label('date')
             )
             .filter(Visitor.current_datetime >= slot_start, Visitor.current_datetime < slot_end)
-            .group_by(Visitor.counter_id)
-            .order_by(func.count(Visitor.person_id).desc())  # Most visited first
+            .group_by(Visitor.counter_id, func.date(Visitor.current_datetime))  # Add date to GROUP BY
+            .order_by(func.count(Visitor.person_id).desc())
             .first()
         )
-        
+
         if most_visited_result:
             counter_id, visitor_count, total_duration, visit_date = most_visited_result
             average_duration = round(total_duration / visitor_count, 2) if visitor_count > 0 else 0.00
@@ -256,15 +268,29 @@ def most_visited_counter_for_each_slot_time_in_latest_date_func(db: Session):
                 "counter_id": counter_id,
                 "visitor_count": visitor_count,
                 "average_duration": average_duration,
-                "visit_date": visit_date.strftime('%Y-%m-%d')  # Format the date
+                "visit_date": visit_date.strftime('%Y-%m-%d')
             })
         else:
             results.append({
                 "time_slot": f"{slot_start.strftime('%H:%M')}-{slot_end.strftime('%H:%M')}",
                 "message": "No visitors"
             })
-    
+
     return results
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
