@@ -411,7 +411,7 @@ def age_monitoring(selected_date_range: dict, db: Session):
     end_date = datetime.strptime(selected_date_range['end_date'], '%Y-%m-%d %H:%M:%S')
 
     # Age groups as strings
-    age_groups = ['teenager', 'young', 'adult', 'senior']
+    age_groups = ['Child', 'Teenager', 'Young', 'Adult', 'Middle Age', 'Elderly']
 
     # Get distinct counter_ids from the Visitor table
     counters = db.query(Visitor.counter_id).distinct().all()
