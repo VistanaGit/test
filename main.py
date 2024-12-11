@@ -14,7 +14,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 from db_initialize import Account, Camera, Counter, ROI, Visitor, Activity, Notification
-from service_functions import (
+from service_functions_5 import (
     recover_password,
     login,
     get_counter_list,
@@ -310,11 +310,10 @@ def minimum_visited_counter_for_latest_date_slot_time_endpoint(db: Session = Dep
         
 
 
-@app.post("/age_monitoring")
+@app.post("/age_monitoring_in_dashboard")
 async def age_monitoring_endpoint(selected_date_range: dict, 
-                                  db: Session = Depends(get_db),
-                                  token: str = Depends(oauth2_scheme)):
-    token_data = verify_token(token)  # Verifying the token
+                                  db: Session = Depends(get_db)):
+    #token_data = verify_token(token)  # Verifying the token
     try:
         # Perform age monitoring operation using selected_date_range and db session
         result = age_monitoring(selected_date_range, db)
@@ -323,7 +322,7 @@ async def age_monitoring_endpoint(selected_date_range: dict,
         logging.error(f"Error in age monitoring: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.post("/gender_monitoring")
+@app.post("/gender_monitoring_in_dashboard")
 async def gender_monitoring_endpoint(selected_date_range: dict, 
                                     db: Session = Depends(get_db),
                                     token: str = Depends(oauth2_scheme)):
