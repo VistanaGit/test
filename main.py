@@ -310,7 +310,7 @@ def minimum_visited_counter_for_latest_date_slot_time_endpoint(db: Session = Dep
         
 
 
-@app.post("/age_monitoring_in_dashboard")
+@app.post("/age_monitoring")
 async def age_monitoring_endpoint(selected_date_range: dict, 
                                   db: Session = Depends(get_db)):
     #token_data = verify_token(token)  # Verifying the token
@@ -322,7 +322,7 @@ async def age_monitoring_endpoint(selected_date_range: dict,
         logging.error(f"Error in age monitoring: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.post("/gender_monitoring_in_dashboard")
+@app.post("/gender_monitoring")
 async def gender_monitoring_endpoint(selected_date_range: dict, 
                                     db: Session = Depends(get_db),
                                     token: str = Depends(oauth2_scheme)):
