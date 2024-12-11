@@ -272,7 +272,6 @@ def most_visited_counter_no_slot_time_for_latest_date_endpoint(db: Session = Dep
 
 
 
-
 # New endpoints for retrieving of most visited counter for only latest date and covering slot time
 @app.get("/most_visited_counter_for_each_slot_time_in_latest_date")
 def most_visited_counter_for_each_slot_time_in_latest_date_endpoint(db: Session = Depends(get_db)):
@@ -298,7 +297,7 @@ def most_visited_counter_for_latest_date_slot_time_endpoint(db: Session = Depend
         return {"message": "Error fetching most visited counter"}
 
 
-# New endpoint to find the minimum visited counter for the latest date
+# Endpoint to find the minimum visited counter for the latest date
 @app.get("/minimum_visited_counter_for_latest_date_slot_time")
 def minimum_visited_counter_for_latest_date_slot_time_endpoint(db: Session = Depends(get_db)):
     try:
@@ -307,7 +306,6 @@ def minimum_visited_counter_for_latest_date_slot_time_endpoint(db: Session = Dep
     except Exception as e:
         logging.error(f"Error fetching minimum visited counter: {e}")
         return {"message": "Error fetching minimum visited counter"}
-        
 
 
 @app.post("/age_monitoring")
