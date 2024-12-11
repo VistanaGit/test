@@ -1402,5 +1402,3 @@ def get_exhibition_names(db: Session):
     except Exception as e:
         print(f"Error fetching exhibition names: {e}")
         return []
-
-
